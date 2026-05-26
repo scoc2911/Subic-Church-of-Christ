@@ -42,6 +42,17 @@ export interface Member {
   updatedAt?: string;
 }
 
+// Helper to remove undefined properties from an object so Firestore does not throw an error
+const sanitizeData = <T extends Record<string, any>>(data: T): Partial<T> => {
+  const sanitized: any = {};
+  Object.keys(data).forEach((key) => {
+    if (data[key] !== undefined) {
+      sanitized[key] = data[key];
+    }
+  });
+  return sanitized;
+};
+
 export const subscribeToMembers = (callback: (members: Member[]) => void) => {
   const q = query(collection(db, "members"));
   return onSnapshot(
@@ -61,9 +72,10 @@ export const subscribeToMembers = (callback: (members: Member[]) => void) => {
 
 export const createMember = async (memberData: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
   try {
+    const sanitized = sanitizeData(memberData);
     const newDocRef = doc(collection(db, "members"));
     await setDoc(newDocRef, {
-      ...memberData,
+      ...sanitized,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -75,12 +87,13 @@ export const createMember = async (memberData: Omit<Member, "id" | "createdAt" |
 export const updateMember = async (id: string, memberData: Partial<Member>) => {
   try {
     const memberDoc = doc(db, "members", id);
-    // Exclude id from update
+    // Exclude id and createdAt from update
     const { id: _, createdAt, ...updateData } = memberData;
+    const sanitized = sanitizeData(updateData);
     await setDoc(
       memberDoc,
       {
-        ...updateData,
+        ...sanitized,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -125,9 +138,10 @@ export const subscribeToNetworks = (callback: (networks: Network[]) => void) => 
 
 export const createNetwork = async (networkData: Omit<Network, "id" | "createdAt" | "updatedAt">) => {
   try {
+    const sanitized = sanitizeData(networkData);
     const newDocRef = doc(collection(db, "networks"));
     await setDoc(newDocRef, {
-      ...networkData,
+      ...sanitized,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -140,10 +154,11 @@ export const updateNetwork = async (id: string, networkData: Partial<Network>) =
   try {
     const networkDoc = doc(db, "networks", id);
     const { id: _, createdAt, ...updateData } = networkData;
+    const sanitized = sanitizeData(updateData);
     await setDoc(
       networkDoc,
       {
-        ...updateData,
+        ...sanitized,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -188,9 +203,10 @@ export const subscribeToMinistries = (callback: (ministries: Ministry[]) => void
 
 export const createMinistry = async (ministryData: Omit<Ministry, "id" | "createdAt" | "updatedAt">) => {
   try {
+    const sanitized = sanitizeData(ministryData);
     const newDocRef = doc(collection(db, "ministries"));
     await setDoc(newDocRef, {
-      ...ministryData,
+      ...sanitized,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -203,10 +219,11 @@ export const updateMinistry = async (id: string, ministryData: Partial<Ministry>
   try {
     const ministryDoc = doc(db, "ministries", id);
     const { id: _, createdAt, ...updateData } = ministryData;
+    const sanitized = sanitizeData(updateData);
     await setDoc(
       ministryDoc,
       {
-        ...updateData,
+        ...sanitized,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -253,9 +270,10 @@ export const subscribeToEvents = (callback: (events: ChurchEvent[]) => void) => 
 
 export const createEvent = async (eventData: Omit<ChurchEvent, "id" | "createdAt" | "updatedAt">) => {
   try {
+    const sanitized = sanitizeData(eventData);
     const newDocRef = doc(collection(db, "events"));
     await setDoc(newDocRef, {
-      ...eventData,
+      ...sanitized,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -268,10 +286,11 @@ export const updateEvent = async (id: string, eventData: Partial<ChurchEvent>) =
   try {
     const eventDoc = doc(db, "events", id);
     const { id: _, createdAt, ...updateData } = eventData;
+    const sanitized = sanitizeData(updateData);
     await setDoc(
       eventDoc,
       {
-        ...updateData,
+        ...sanitized,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
