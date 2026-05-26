@@ -9,7 +9,6 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import * as Dialog from "@radix-ui/react-dialog";
 import { PlusIcon, Pencil1Icon, TrashIcon, MagnifyingGlassIcon, CalendarIcon, ClockIcon } from "@radix-ui/react-icons";
 import { DataAnalysis } from "@/components/DataAnalysis";
-import { UserManagement } from "@/components/UserManagement";
 
 const calculateCountdown = (dateString: string): { text: string; passed: boolean } => {
   const eventDate = new Date(dateString).getTime();
@@ -43,7 +42,7 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
   const [isMinistryModalOpen, setIsMinistryModalOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"home" | "members" | "analysis" | "users">("home");
+  const [currentView, setCurrentView] = useState<"home" | "members" | "analysis">("home");
   const [editingMember, setEditingMember] = useState<Member | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -523,16 +522,6 @@ export default function Home() {
                       <h3 className="text-xl font-semibold text-gray-900 mb-2">Data Analysis</h3>
                       <p className="text-sm text-gray-500 leading-relaxed max-w-xs">View charts and insights on member demographics.</p>
                    </button>
-                   <button onClick={() => setCurrentView("users")} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:border-emerald-300 hover:shadow-md transition text-left cursor-pointer group flex flex-col items-start w-full focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                      <div className="bg-emerald-50 text-emerald-600 h-14 w-14 rounded-xl flex items-center justify-center mb-5 group-hover:bg-emerald-600 group-hover:text-white transition shadow-sm">
-                         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 10-8 0v4M5 11h14v10a2 2 0 01-2 2H7a2 2 0 01-2-2V11z" />
-                         </svg>
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Manage Users</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed max-w-xs">Assign roles like Administrator or Viewer to platform users.</p>
-                   </button>
                    </>
                 )}
              </div>
@@ -733,10 +722,6 @@ export default function Home() {
         
         {currentView === "analysis" && (
           <DataAnalysis members={members} onBack={() => setCurrentView("home")} />
-        )}
-
-        {currentView === "users" && (
-          <UserManagement />
         )}
 
         <Dialog.Root open={isModalOpen} onOpenChange={setIsModalOpen}>
