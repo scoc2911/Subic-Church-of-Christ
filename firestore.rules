@@ -24,52 +24,19 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin() &&
-        // Required fields
-        request.resource.data.keys().hasAll(['lastName', 'firstName', 'membershipStatus', 'createdAt', 'updatedAt']) &&
-        request.resource.data.createdAt == request.time &&
-        request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() &&
-        request.resource.data.keys().hasAll(['lastName', 'firstName', 'membershipStatus', 'updatedAt']) &&
-        request.resource.data.updatedAt == request.time;
-      allow delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     match /networks/{networkId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin() &&
-        request.resource.data.keys().hasAll(['networkName', 'networkLeader', 'createdAt', 'updatedAt']) &&
-        request.resource.data.createdAt == request.time &&
-        request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() &&
-        request.resource.data.keys().hasAll(['networkName', 'networkLeader', 'updatedAt']) &&
-        request.resource.data.updatedAt == request.time;
-      allow delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     match /ministries/{ministryId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin() &&
-        request.resource.data.keys().hasAll(['ministryName', 'ministryHead', 'createdAt', 'updatedAt']) &&
-        request.resource.data.createdAt == request.time &&
-        request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() &&
-        request.resource.data.keys().hasAll(['ministryName', 'ministryHead', 'updatedAt']) &&
-        request.resource.data.updatedAt == request.time;
-      allow delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     match /events/{eventId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin() &&
-        request.resource.data.keys().hasAll(['eventName', 'eventDate', 'createdAt', 'updatedAt']) &&
-        request.resource.data.createdAt == request.time &&
-        request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() &&
-        request.resource.data.keys().hasAll(['eventName', 'eventDate', 'updatedAt']) &&
-        request.resource.data.updatedAt == request.time;
-      allow delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
   }
 }
