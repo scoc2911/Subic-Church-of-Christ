@@ -95,7 +95,7 @@ const calculateCountdown = (dateString: string): { text: string; passed: boolean
 };
 
 export default function Home() {
-  const { user, role, loading, login, logout } = useAuth();
+  const { user, role, loading, isLoggingIn, loginError, login, logout } = useAuth();
   
   // Real-time Firestore Subscribed States
   const [members, setMembers] = useState<Member[]>([]);
@@ -194,15 +194,34 @@ export default function Home() {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-150 flex flex-col items-center">
-          <Logo size={80} className="mb-4 text-blue-600" />
+          <Logo size={80} className={`mb-4 text-blue-600 ${isLoggingIn ? "animate-pulse" : ""}`} />
           <h1 className="text-2xl font-black text-gray-950 mb-1 text-center tracking-tight">SUBIC CHURCH OF CHRIST</h1>
           <p className="text-gray-400 mb-8 text-center text-sm font-semibold uppercase tracking-widest">Digital Board & Registry</p>
+          
           <button
             onClick={login}
-            className="w-full h-12 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2.5 cursor-pointer shadow-md shadow-blue-600/10"
+            disabled={isLoggingIn}
+            className={`w-full h-12 bg-blue-600 text-white rounded-lg font-bold transition flex items-center justify-center gap-2.5 shadow-md shadow-blue-600/10 ${
+              isLoggingIn ? "opacity-60 cursor-not-allowed" : "hover:bg-blue-700 cursor-pointer"
+            }`}
           >
-            Sign in with Google Account
+            {isLoggingIn ? (
+              <span className="flex items-center gap-2 font-semibold">
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Connecting Google Account...
+              </span>
+            ) : "Sign in with Google Account"}
           </button>
+
+          {loginError && (
+            <div className="mt-6 p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-850 text-xs leading-relaxed space-y-1.5 animate-in fade-in duration-200">
+              <p className="font-extrabold uppercase tracking-wider text-[10px] text-orange-700">Popup Action Required</p>
+              <p className="text-gray-700">{loginError}</p>
+            </div>
+          )}
         </div>
       </div>
     );

@@ -11,6 +11,8 @@ interface AuthContextType {
   user: User | null;
   role: UserRole;
   loading: boolean;
+  isLoggingIn: boolean;
+  loginError: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -19,6 +21,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   role: null,
   loading: true,
+  isLoggingIn: false,
+  loginError: null,
   login: async () => {},
   logout: async () => {},
 });
@@ -29,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -59,16 +65,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+    setLoginError(null);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.error("Login attempt failed:", error);
+      const errorCode = error?.code;
+      if (errorCode === "auth/popup-blocked") {
+        setLoginError(
+          "Your browser blocked the sign-in popup. Please click the blocked-popup icon in your browser address bar and choose 'Always allow popups', or click SCOC's 'Open App' button in the top right to open in a new tab."
+        );
+      } else if (errorCode === "auth/cancelled-popup-request") {
+        setLoginError("The sign-in popup was closed before completion. Please keep the Google account window open until authentication finishes.");
+      } else if (error?.message?.includes("Pending promise")) {
+        setLoginError("An active login request was pending. Please refresh this page if SCOC is stuck, or open the app in a new browser tab.");
+      } else {
+        setLoginError(error?.message || String(error));
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   const logout = async () => {
+    setLoginError(null);
     await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, isLoggingIn, loginError, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
