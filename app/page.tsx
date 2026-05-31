@@ -532,41 +532,87 @@ export default function Home() {
         
         {currentView === "members" && (
           <div className="animate-fade-in space-y-6">
-            <div className="flex flex-col 2xl:flex-row items-start 2xl:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3 w-full 2xl:w-auto">
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <button
-                    onClick={() => setCurrentView("home")}
-                    className="p-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition h-[42px] flex items-center justify-center cursor-pointer shrink-0"
-                    title="Back to Home"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                  </button>
-                  <div className="relative flex-1 sm:flex-none w-full sm:w-[240px]">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Search by name or ID..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-6 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm"
-                    />
-                  </div>
+            {/* Top Row: Section Title / Breadcrumb and Action Buttons */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-3.5">
+                <button
+                  onClick={() => setCurrentView("home")}
+                  className="p-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition flex items-center justify-center cursor-pointer shrink-0 shadow-sm"
+                  title="Back to Home"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                </button>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 leading-none">Member Directory</h2>
+                  <p className="text-xs text-gray-500 mt-1 font-medium">Viewing registered church members</p>
                 </div>
+              </div>
 
+              {role === "admin" && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setIsEventModalOpen(true)}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap cursor-pointer"
+                  >
+                    <CalendarIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5 text-gray-500" aria-hidden="true" />
+                    Events
+                  </button>
+                  <button
+                    onClick={() => setIsMinistryModalOpen(true)}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap cursor-pointer"
+                  >
+                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5 text-gray-500" aria-hidden="true" />
+                    Ministries
+                  </button>
+                  <button
+                    onClick={() => setIsNetworkModalOpen(true)}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap cursor-pointer"
+                  >
+                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5 text-gray-500" aria-hidden="true" />
+                    Networks
+                  </button>
+                  <button
+                    onClick={handleAddClick}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition whitespace-nowrap cursor-pointer"
+                  >
+                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5" aria-hidden="true" />
+                    Add Member
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Row: Advanced Search & Dynamic Filters */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-gray-50/60 p-4 rounded-xl border border-gray-300/80 shadow-xs">
+              {/* Comprehensive Search Input */}
+              <div className="flex-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by name, last name, or ID..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-6 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-xs transition-shadow"
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Filtering Controls Container */}
+              <div className="flex flex-wrap items-center gap-3">
                 {/* Segmented Control for Baptism Filtering */}
-                <div className="flex items-center gap-1 border border-gray-300 rounded-lg p-1 bg-gray-50 shadow-inner w-full sm:w-auto overflow-x-auto min-w-max">
+                <div className="flex items-center gap-1 border border-gray-300 rounded-lg p-1 bg-white shadow-inner shrink-0 overflow-x-auto">
                   <button
                     type="button"
                     onClick={() => setBaptismFilter("all")}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
                       baptismFilter === "all"
-                        ? "bg-white text-blue-600 shadow-sm border border-gray-200"
-                        : "text-gray-500 hover:text-gray-900"
+                        ? "bg-blue-50 text-blue-600 shadow-xs border border-blue-100"
+                        : "text-gray-500 hover:text-gray-900 border border-transparent"
                     }`}
                   >
                     All Members
@@ -574,10 +620,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setBaptismFilter("baptized")}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
                       baptismFilter === "baptized"
-                        ? "bg-white text-green-700 shadow-sm border border-gray-200"
-                        : "text-gray-500 hover:text-gray-900"
+                        ? "bg-green-50 text-green-700 shadow-xs border border-green-100"
+                        : "text-gray-500 hover:text-gray-900 border border-transparent"
                     }`}
                   >
                     Baptized
@@ -585,21 +631,21 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setBaptismFilter("unbaptized")}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
                       baptismFilter === "unbaptized"
-                        ? "bg-white text-amber-700 shadow-sm border border-gray-200"
-                        : "text-gray-500 hover:text-gray-900"
+                        ? "bg-amber-50 text-amber-700 shadow-xs border border-amber-100"
+                        : "text-gray-500 hover:text-gray-900 border border-transparent"
                     }`}
                   >
                     Not Baptized
                   </button>
                 </div>
 
-                {/* Filter by Network */}
+                {/* Filter by Network Dropdown */}
                 <select
                   value={networkFilter}
                   onChange={(e) => setNetworkFilter(e.target.value)}
-                  className="block w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg leading-6 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm"
+                  className="block w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-xs transition pointer-events-auto cursor-pointer"
                 >
                   <option value="all">All Networks</option>
                   {networks.map((net) => (
@@ -609,11 +655,11 @@ export default function Home() {
                   ))}
                 </select>
 
-                {/* Filter by Ministry */}
+                {/* Filter by Ministry Dropdown */}
                 <select
                   value={ministryFilter}
                   onChange={(e) => setMinistryFilter(e.target.value)}
-                  className="block w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg leading-6 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm"
+                  className="block w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-xs transition pointer-events-auto cursor-pointer"
                 >
                   <option value="all">All Ministries</option>
                   {ministries.map((min) => (
@@ -623,39 +669,6 @@ export default function Home() {
                   ))}
                 </select>
               </div>
-
-              {role === "admin" && (
-                <div className="flex flex-wrap w-full 2xl:w-auto items-center gap-2">
-                  <button
-                    onClick={() => setIsEventModalOpen(true)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap"
-                  >
-                    <CalendarIcon className="-ml-1 mr-2 flex-shrink-0 h-4 w-4 text-gray-500" aria-hidden="true" />
-                    Events
-                  </button>
-                  <button
-                    onClick={() => setIsMinistryModalOpen(true)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap"
-                  >
-                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4 w-4 text-gray-500" aria-hidden="true" />
-                    Ministries
-                  </button>
-                  <button
-                    onClick={() => setIsNetworkModalOpen(true)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap"
-                  >
-                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4 w-4 text-gray-500" aria-hidden="true" />
-                    Networks
-                  </button>
-                  <button
-                    onClick={handleAddClick}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition whitespace-nowrap"
-                  >
-                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4 w-4" aria-hidden="true" />
-                    Add Member
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="bg-white shadow-sm rounded-xl overflow-hidden border border-gray-200">
