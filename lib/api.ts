@@ -21,6 +21,8 @@ export interface Member {
   age?: number;
   birthday?: string;
   address?: string;
+  contactNumber?: string;
+  email?: string;
   yearLevel?: string;
   course?: string;
   school?: string;
@@ -32,12 +34,15 @@ export interface Member {
   baptismWitness2?: string;
   fathersName?: string;
   mothersName?: string;
+  maritalStatus?: string;
+  spouseName?: string;
   membershipStatus: string;
   pictures?: string[];
   network?: string;
   networkLeader?: string;
   ministry?: string;
   ministryHead?: string;
+  notes?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -307,3 +312,170 @@ export const deleteEvent = async (id: string) => {
     handleFirestoreError(error, OperationType.DELETE, `events/${id}`);
   }
 };
+
+// ----------------------------------------------------
+// ATTENDANCE TRACKING
+// ----------------------------------------------------
+export interface AttendanceRecord {
+  id?: string;
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  memberId: string;
+  memberName: string;
+  status: "Present" | "Absent";
+  updatedAt?: any;
+}
+
+export const subscribeToAttendance = (eventId: string, callback: (records: AttendanceRecord[]) => void) => {
+  const q = query(collection(db, "attendance"));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const records = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as AttendanceRecord[];
+      // Filter in-memory for accuracy and ease of indexing
+      const filtered = records.filter(r => r.eventId === eventId);
+      callback(filtered);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, `attendance?eventId=${eventId}`);
+    }
+  );
+};
+
+export const saveAttendanceBatch = async (records: Omit<AttendanceRecord, "id" | "updatedAt">[]) => {
+  try {
+    const promises = records.map(async (rec) => {
+      // Use unique key: eventId_memberId to avoid duplicate rows in attendance tracking
+      const docKey = `${rec.eventId}_${rec.memberId}`;
+      const docRef = doc(db, "attendance", docKey);
+      await setDoc(
+        docRef,
+        {
+          ...sanitizeData(rec),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+    await Promise.all(promises);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, "attendance-batch");
+  }
+};
+
+// ----------------------------------------------------
+// AUDIT LOGS & TRAILS
+// ----------------------------------------------------
+export interface AuditLog {
+  id?: string;
+  userEmail: string;
+  userName: string;
+  action: string;
+  timestamp?: any;
+}
+
+export const createAuditLog = async (logData: Omit<AuditLog, "id" | "timestamp">) => {
+  try {
+    const newDocRef = doc(collection(db, "auditLogs"));
+    await setDoc(newDocRef, {
+      ...sanitizeData(logData),
+      timestamp: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Failed to create audit log:", error);
+  }
+};
+
+export const subscribeToAuditLogs = (callback: (logs: AuditLog[]) => void) => {
+  const q = query(collection(db, "auditLogs"));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const logs = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        let timestampStr = "—";
+        if (data.timestamp) {
+          const t = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+          timestampStr = t.toLocaleString();
+        }
+        return {
+          id: doc.id,
+          ...data,
+          formattedTimestamp: timestampStr,
+        } as AuditLog & { formattedTimestamp: string };
+      });
+      // Sort logs by newest first
+      logs.sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
+      callback(logs);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, "auditLogs");
+    }
+  );
+};
+
+// ----------------------------------------------------
+// SYSTEM USER ROLES & PERMISSIONS
+// ----------------------------------------------------
+export interface SystemUserRole {
+  id?: string; // will store the user authenticated UUID or email
+  email: string;
+  displayName: string;
+  role: "admin" | "viewer";
+  updatedAt?: any;
+}
+
+export const subscribeToUserRoles = (callback: (roles: SystemUserRole[]) => void) => {
+  const q = query(collection(db, "userRoles"));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const userRoles = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as SystemUserRole[];
+      callback(userRoles);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, "userRoles");
+    }
+  );
+};
+
+export const updateUserRole = async (email: string, role: "admin" | "viewer") => {
+  try {
+    // We sanitize Email to use as a Firestore key so we don't duplicate records
+    const safeKey = email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const roleDocRef = doc(db, "userRoles", safeKey);
+    await setDoc(
+      roleDocRef,
+      {
+        email: email.toLowerCase(),
+        role,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `userRoles/${email}`);
+  }
+};
+
+export const deleteUserRole = async (email: string) => {
+  try {
+    const safeKey = email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    await deleteDoc(doc(db, "userRoles", safeKey));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `userRoles/${email}`);
+  }
+};
+

@@ -18,25 +18,110 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == 'scoc2911@gmail.com';
     }
 
+    // Entity validator: AuditLogs
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['userEmail', 'userName', 'action', 'timestamp'])
+        && data.keys().size() == 4
+        && data.userEmail is string && data.userEmail.size() <= 128
+        && data.userName is string && data.userName.size() <= 128
+        && data.action is string && data.action.size() <= 1000
+        && data.timestamp == request.time;
+    }
+
+    // Entity validator: Attendance
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['eventId', 'eventName', 'eventDate', 'memberId', 'memberName', 'status', 'updatedAt'])
+        && data.keys().size() == 7
+        && data.eventId is string && data.eventId.size() <= 128
+        && data.eventName is string && data.eventName.size() <= 128
+        && data.eventDate is string && data.eventDate.size() <= 128
+        && data.memberId is string && data.memberId.size() <= 128
+        && data.memberName is string && data.memberName.size() <= 150
+        && (data.status == 'Present' || data.status == 'Absence' || data.status == 'Absent')
+        && data.updatedAt == request.time;
+    }
+
+    // Entity validator: UserRole
+    function isValidUserRole(data) {
+      return data.keys().hasAll(['email', 'role', 'updatedAt'])
+        && data.keys().size() == 3
+        && data.email is string && data.email.size() <= 128
+        && (data.role == 'admin' || data.role == 'viewer')
+        && data.updatedAt == request.time;
+    }
+
+    // Entity validator: Member
+    function isValidMember(data) {
+      return data.keys().hasAll(['firstName', 'lastName', 'membershipStatus', 'createdAt', 'updatedAt'])
+        && data.firstName is string && data.firstName.size() <= 128
+        && data.lastName is string && data.lastName.size() <= 128
+        && data.membershipStatus is string && data.membershipStatus.size() <= 64;
+    }
+
+    // Entity validator: Network
+    function isValidNetwork(data) {
+      return data.keys().hasAll(['networkName', 'networkLeader', 'createdAt', 'updatedAt'])
+        && data.networkName is string && data.networkName.size() <= 128
+        && data.networkLeader is string && data.networkLeader.size() <= 128;
+    }
+
+    // Entity validator: Ministry
+    function isValidMinistry(data) {
+      return data.keys().hasAll(['ministryName', 'ministryHead', 'createdAt', 'updatedAt'])
+        && data.ministryName is string && data.ministryName.size() <= 128
+        && data.ministryHead is string && data.ministryHead.size() <= 128;
+    }
+
+    // Entity validator: Event
+    function isValidEvent(data) {
+      return data.keys().hasAll(['eventName', 'eventDate', 'createdAt', 'updatedAt'])
+        && data.eventName is string && data.eventName.size() <= 128
+        && data.eventDate is string && data.eventDate.size() <= 128;
+    }
+
     match /userRoles/{userId} {
       allow read: if isSignedIn() && (isSuperAdmin() || request.auth.uid == userId || isAdmin());
       allow write: if isSuperAdmin();
     }
 
     match /members/{memberId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidMember(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin() && isValidMember(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
     }
 
     match /networks/{networkId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidNetwork(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin() && isValidNetwork(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
     }
 
     match /ministries/{ministryId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidMinistry(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin() && isValidMinistry(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
     }
 
     match /events/{eventId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidEvent(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin() && isValidEvent(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    match /attendance/{recordId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidAttendance(request.resource.data) && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin() && isValidAttendance(request.resource.data) && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidAuditLog(request.resource.data);
     }
   }
 }

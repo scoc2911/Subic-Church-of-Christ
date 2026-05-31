@@ -26,13 +26,30 @@ interface MemberFormProps {
   ministries?: Ministry[];
 }
 
-export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMembershipId, networks = [], ministries = [] }: MemberFormProps) {
+type TabType = "personal" | "contact" | "education" | "church" | "baptism" | "family" | "ministry";
+
+export function MemberForm({
+  initialData,
+  onSubmit,
+  onCancel,
+  isSaving,
+  nextMembershipId,
+  networks = [],
+  ministries = []
+}: MemberFormProps) {
+  const [activeTab, setActiveTab] = useState<TabType>("personal");
+
   const [formData, setFormData] = useState<Partial<Member>>(() => {
-    const data: Partial<Member> = initialData 
-      ? { ...initialData } 
-      : { membershipStatus: "Active", voter: false, membershipId: nextMembershipId, isBaptized: false };
-    
-    // Automatically calculate age upon form load if birthday is present
+    const data: Partial<Member> = initialData
+      ? { ...initialData }
+      : {
+          membershipStatus: "Active",
+          voter: false,
+          membershipId: nextMembershipId,
+          isBaptized: false,
+          gender: "Male"
+        };
+
     if (data.birthday) {
       const computedAge = calculateAge(data.birthday);
       if (computedAge !== undefined) {
@@ -40,9 +57,8 @@ export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMemb
       }
     }
 
-    // Determine starting isBaptized status if not set
     if (data.isBaptized === undefined) {
-      const hasBaptismDate = data.baptismDate && data.baptismDate !== "" && data.baptismDate !== "N/A" && data.baptismDate !== "--/--/----";
+      const hasBaptismDate = data.baptismDate && data.baptismDate !== "" && data.baptismDate !== "N/A";
       const hasExecutedBy = data.baptismExecutedBy && data.baptismExecutedBy !== "" && data.baptismExecutedBy !== "N/A";
       data.isBaptized = !!(hasBaptismDate || hasExecutedBy);
     }
@@ -52,7 +68,6 @@ export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMemb
 
   const [isNetworkSelectionOpen, setIsNetworkSelectionOpen] = useState(false);
   const [isMinistrySelectionOpen, setIsMinistrySelectionOpen] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const compressImage = (file: File): Promise<string> => {
@@ -83,7 +98,7 @@ export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMemb
 
           canvas.width = width;
           canvas.height = height;
-          
+
           const ctx2d = canvas.getContext("2d");
           if (ctx2d) {
             ctx2d.drawImage(img, 0, 0, width, height);
@@ -111,29 +126,7 @@ export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMemb
     }
   };
 
-  const handleNetworkSelect = (selectedNetwork: string) => {
-    const matching = networks.find(
-      (n) => n.networkName.toLowerCase() === selectedNetwork.toLowerCase()
-    );
-    setFormData((prev) => ({
-      ...prev,
-      network: selectedNetwork,
-      networkLeader: matching ? matching.networkLeader : prev.networkLeader,
-    }));
-  };
-
-  const handleLeaderSelect = (selectedLeader: string) => {
-    const matching = networks.find(
-      (n) => n.networkLeader.toLowerCase() === selectedLeader.toLowerCase()
-    );
-    setFormData((prev) => ({
-      ...prev,
-      networkLeader: selectedLeader,
-      network: matching ? matching.networkName : prev.network,
-    }));
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
@@ -162,18 +155,18 @@ export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMemb
     } else if (type === "number") {
       setFormData((prev) => ({ ...prev, [name]: parseInt(value, 10) || undefined }));
     } else {
-      const finalValue = type === "text" ? value.toUpperCase() : value;
+      const finalValue = type === "text" || type === "textarea" ? value.toUpperCase() : value;
       setFormData((prev) => {
         const newData = { ...prev, [name]: finalValue };
-        
+
         if (name === "yearLevel") {
           newData.course = "";
           const isCollege = yearLevels.find(g => g.group === "College")?.options.includes(finalValue);
           const isGraduate = yearLevels.find(g => g.group === "Graduate School")?.options.includes(finalValue);
           const isProfessional = yearLevels.find(g => g.group === "Professional / Career")?.options.includes(finalValue);
-          
+
           if (!isCollege && !isGraduate && !isProfessional && finalValue) {
-              newData.course = "N/A";
+            newData.course = "N/A";
           }
         }
 
@@ -187,51 +180,56 @@ export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMemb
             newData.age = undefined;
           }
         }
+
         if (name === "network" && value) {
           const matching = networks.find(
-            (n) => n.networkName.toLowerCase() === value.toLowerCase()
+            (n) => n.networkName.toUpperCase() === value.toUpperCase()
           );
           if (matching) {
-            newData.networkLeader = matching.networkLeader;
+            newData.networkLeader = matching.networkLeader.toUpperCase();
           }
         }
+
         if (name === "networkLeader" && value) {
           const matching = networks.find(
-            (n) => n.networkLeader.toLowerCase() === value.toLowerCase()
+            (n) => n.networkLeader.toUpperCase() === value.toUpperCase()
           );
           if (matching) {
-            newData.network = matching.networkName;
+            newData.network = matching.networkName.toUpperCase();
           }
         }
+
         if (name === "ministry" && value) {
           const matching = ministries.find(
-            (m) => m.ministryName.toLowerCase() === value.toLowerCase()
+            (m) => m.ministryName.toUpperCase() === value.toUpperCase()
           );
           if (matching) {
-            newData.ministryHead = matching.ministryHead;
+            newData.ministryHead = matching.ministryHead.toUpperCase();
           }
         }
+
         if (name === "ministryHead" && value) {
           const matching = ministries.find(
-            (m) => m.ministryHead.toLowerCase() === value.toLowerCase()
+            (m) => m.ministryHead.toUpperCase() === value.toUpperCase()
           );
           if (matching) {
-            newData.ministry = matching.ministryName;
+            newData.ministry = matching.ministryName.toUpperCase();
           }
         }
+
         return newData;
       });
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.lastName || !formData.firstName || !formData.membershipStatus) {
-      alert("Last Name, First Name, and Membership Status are required.");
+      alert("Please fill in basic details first (Last Name, First Name, and Membership Status).");
+      setActiveTab("personal");
       return;
     }
 
-    // Absolutely ensure age is fully populated and updated on submit
     const finalData = { ...formData };
     if (finalData.birthday) {
       const computedAge = calculateAge(finalData.birthday);
@@ -253,572 +251,728 @@ export function MemberForm({ initialData, onSubmit, onCancel, isSaving, nextMemb
     onSubmit(finalData as Omit<Member, "id" | "createdAt" | "updatedAt">);
   };
 
+  const tabItems: { id: TabType; label: string; count?: string }[] = [
+    { id: "personal", label: "👦 Personal Info" },
+    { id: "contact", label: "📞 Contact Info" },
+    { id: "education", label: "🎓 Education Background" },
+    { id: "church", label: "⛪ Church Info" },
+    { id: "baptism", label: "💧 Baptism Information" },
+    { id: "family", label: "👨‍👩‍👧 Family Information" },
+    { id: "ministry", label: "🤝 Ministry Involvement" }
+  ];
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full">
-      <div className="flex flex-col md:flex-row gap-6 lg:gap-8 items-start mb-6">
-        {/* Left Column: Picture Upload */}
-        <div className="w-full md:w-56 lg:w-64 flex flex-col items-center flex-shrink-0">
-          <label className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Member Photo</label>
-          <div 
+    <form onSubmit={handleFormSubmit} className="flex flex-col lg:flex-row h-full gap-8">
+      {/* Sidebar: Photo and Navigation Tabs */}
+      <div className="w-full lg:w-72 flex flex-col gap-6 shrink-0 border-b lg:border-b-0 lg:border-r border-gray-100 pb-6 lg:pb-0 lg:pr-6">
+        
+        {/* Upload Container */}
+        <div className="flex flex-col items-center">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">MEMBER PHOTOGRAPH</span>
+          <div
             onClick={() => fileInputRef.current?.click()}
-            className="h-48 w-48 md:h-56 md:w-56 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center overflow-hidden cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors relative group shadow-sm bg-gray-50"
+            className="w-40 h-40 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center overflow-hidden cursor-pointer hover:border-[#1E3A8A] hover:bg-blue-50/20 transition relative group shadow-sm shrink-0"
           >
             {formData.pictures && formData.pictures[0] ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={formData.pictures[0]} alt="Member" className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-white text-xs font-semibold bg-black/50 px-3 py-1.5 rounded-full">Change Photo</span>
+                <img src={formData.pictures[0]} alt="Member Frame" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-white text-[11px] font-bold bg-[#1E3A8A] px-2.5 py-1 rounded-md">CHANGE PHOTO</span>
                 </div>
               </>
             ) : (
               <div className="text-center text-gray-400 p-4">
-                <svg className="mx-auto h-10 w-10 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <svg className="mx-auto h-8 w-8 mb-1.5 text-gray-400 group-hover:text-[#1E3A8A] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-sm font-medium">Click to<br/>Upload Photo</span>
+                <span className="text-xs font-semibold text-gray-500">CLICK TO UPLOAD</span>
               </div>
             )}
           </div>
-          <input 
-            type="file" 
-            accept="image/*" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleImageUpload} 
-          />
-        </div>
-
-        {/* Right Column: Form Sections */}
-        <div className="flex-1 w-full space-y-6">
-          {/* Section: Basic Info & Demographics */}
-          <div>
-            <div className="pb-2 border-b border-gray-200 mb-4 flex justify-between items-end">
-              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest">Personal Details</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {/* Basic Info */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Membership ID</label>
-          <input type="text" name="membershipId" value={formData.membershipId || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Last Name *</label>
-          <input type="text" name="lastName" value={formData.lastName || ""} onChange={handleChange} required className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">First Name *</label>
-          <input type="text" name="firstName" value={formData.firstName || ""} onChange={handleChange} required className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Middle Name</label>
-          <input type="text" name="middleName" value={formData.middleName || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        
-        {/* Demographics */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Gender</label>
-          <select name="gender" value={formData.gender || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 uppercase">
-            <option value="">SELECT...</option>
-            <option value="Male">MALE</option>
-            <option value="Female">FEMALE</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Birthday</label>
-          <input type="date" name="birthday" value={formData.birthday || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700 flex justify-between">
-            <span>Age</span>
-            {formData.birthday && <span className="text-xs text-blue-600 font-semibold bg-blue-50 px-1.5 rounded">Auto-calculated</span>}
-          </label>
-          <input type="number" name="age" value={formData.age || ""} onChange={handleChange} placeholder="Calculated from birthday" className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 bg-gray-50 font-medium" />
-        </div>
-        <div className="space-y-1 lg:col-span-2">
-          <label className="text-sm font-medium text-gray-700">Address</label>
-          <input type="text" name="address" value={formData.address || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-
-        {/* Education & Status */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Year Level</label>
-          <select 
-            name="yearLevel" 
-            value={formData.yearLevel || ""} 
-            onChange={handleChange} 
-            className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 uppercase"
-          >
-            <option value="">SELECT...</option>
-            {yearLevels.map((group) => (
-              <optgroup key={group.group} label={group.group.toUpperCase()}>
-                {group.options.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Course / Educ. Background</label>
-          {(() => {
-            const isCollege = yearLevels.find(g => g.group === "College")?.options.includes(formData.yearLevel || "");
-            const isGraduate = yearLevels.find(g => g.group === "Graduate School")?.options.includes(formData.yearLevel || "");
-            
-            if (isCollege || isGraduate) {
-              const courses = isCollege ? collegeCourses : graduateCourses;
-              return (
-                <select
-                  name="course" 
-                  value={formData.course || ""} 
-                  onChange={handleChange} 
-                  className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 uppercase"
-                >
-                  <option value="">SELECT COURSE...</option>
-                  {courses.map((course) => (
-                    <option key={course} value={course}>{course.toUpperCase()}</option>
-                  ))}
-                  <option value="OTHER">OTHER (PLEASE SPECIFY IN NOTES)</option>
-                </select>
-              );
-            } else {
-              return (
-                <input 
-                  type="text" 
-                  name="course" 
-                  value={formData.course || ""} 
-                  onChange={handleChange} 
-                  placeholder={
-                    formData.yearLevel && !["PROFESSIONAL", "WORKING"].includes(formData.yearLevel) 
-                      ? "N/A" 
-                      : "ENTER COURSE OR N/A"
-                  }
-                  disabled={
-                    formData.yearLevel !== undefined && 
-                    formData.yearLevel !== "" && 
-                    !["PROFESSIONAL", "WORKING"].includes(formData.yearLevel)
-                  }
-                  className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 uppercase disabled:bg-gray-100 disabled:text-gray-500" 
-                />
-              );
-            }
-          })()}
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">School</label>
-          <input type="text" name="school" value={formData.school || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        
-        {/* Church & Status Info */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Membership Status *</label>
-          <select name="membershipStatus" value={formData.membershipStatus || "Active"} onChange={handleChange} required className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 uppercase">
-            <option value="Active">ACTIVE</option>
-            <option value="Inactive">INACTIVE</option>
-            <option value="Transferred">TRANSFERRED</option>
-            <option value="Deceased">DECEASED</option>
-          </select>
-        </div>
-        <div className="space-y-1 flex items-center mt-6">
-          <input type="checkbox" name="voter" checked={formData.voter || false} onChange={handleChange} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded rounded-md" />
-          <label className="ml-2 text-sm font-medium text-gray-700">Registered Voter</label>
-        </div>
-
-        {/* Parents */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Father&apos;s Name</label>
-          <input type="text" name="fathersName" value={formData.fathersName || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Mother&apos;s Name</label>
-          <input type="text" name="mothersName" value={formData.mothersName || ""} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-
-        {/* Baptism Information Section Header */}
-        <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 pt-4 pb-2 border-b border-gray-200 mt-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Baptism Information</h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isBaptized"
-              name="isBaptized"
-              checked={formData.isBaptized || false}
-              onChange={handleChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition cursor-pointer"
-            />
-            <label htmlFor="isBaptized" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
-              Is Already Baptized
-            </label>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Baptism Date</label>
           <input
-            type={formData.isBaptized ? "date" : "text"}
-            name="baptismDate"
-            value={formData.isBaptized ? (formData.baptismDate || "") : "--/--/----"}
-            onChange={handleChange}
-            disabled={!formData.isBaptized}
-            className={`w-full rounded-md shadow-sm p-2 border transition ${
-              formData.isBaptized
-                ? "border-gray-300 bg-white focus:ring-blue-500 focus:border-blue-500"
-                : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
-            }`}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Executed By (Officiating Minister)</label>
-          <input
-            type="text"
-            name="baptismExecutedBy"
-            value={formData.isBaptized ? (formData.baptismExecutedBy || "") : "N/A"}
-            onChange={handleChange}
-            disabled={!formData.isBaptized}
-            placeholder="Minister's Name"
-            className={`w-full rounded-md shadow-sm p-2 border transition ${
-              formData.isBaptized
-                ? "border-gray-300 bg-white focus:ring-blue-500 focus:border-blue-500"
-                : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
-            }`}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Witnessed By (1)</label>
-          <input
-            type="text"
-            name="baptismWitness1"
-            value={formData.isBaptized ? (formData.baptismWitness1 || "") : "N/A"}
-            onChange={handleChange}
-            disabled={!formData.isBaptized}
-            placeholder="First Witness Name"
-            className={`w-full rounded-md shadow-sm p-2 border transition ${
-              formData.isBaptized
-                ? "border-gray-300 bg-white focus:ring-blue-500 focus:border-blue-500"
-                : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
-            }`}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Witnessed By (2)</label>
-          <input
-            type="text"
-            name="baptismWitness2"
-            value={formData.isBaptized ? (formData.baptismWitness2 || "") : "N/A"}
-            onChange={handleChange}
-            disabled={!formData.isBaptized}
-            placeholder="Second Witness Name"
-            className={`w-full rounded-md shadow-sm p-2 border transition ${
-              formData.isBaptized
-                ? "border-gray-300 bg-white focus:ring-blue-500 focus:border-blue-500"
-                : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
-            }`}
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            className="hidden"
           />
         </div>
 
-        {/* Network section spacer */}
-        <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 pt-4 pb-2 border-b border-gray-200 mt-2">
-          <h3 className="text-lg font-semibold text-gray-900">Church Groups</h3>
-        </div>
-
-        {/* Network & Network Leader Selection */}
-        <div className="space-y-1 md:col-span-2">
-          <div className="flex justify-between items-center">
-            <label className="text-sm font-semibold text-gray-800">Network & Network Leader</label>
-            <button
-              type="button"
-              onClick={() => setIsNetworkSelectionOpen(true)}
-              className="inline-flex items-center text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50/80 hover:bg-blue-100/90 px-3 py-1.5 rounded-lg border border-blue-200/50 transition cursor-pointer shadow-xs"
-            >
-              <svg className="w-4 h-4 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h11" />
-              </svg>
-              Select Network & Leader
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1.5">
-            <div className="space-y-1">
-              <span className="text-[11px] font-medium text-gray-500 block">Network Name</span>
-              <input 
-                type="text" 
-                name="network" 
-                value={formData.network || ""} 
-                onChange={handleChange} 
-                placeholder="e.g. Youth" 
-                className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 text-sm" 
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[11px] font-medium text-gray-500 block">Network Leader</span>
-              <input 
-                type="text" 
-                name="networkLeader" 
-                value={formData.networkLeader || ""} 
-                onChange={handleChange} 
-                placeholder="e.g. Bro. Joel" 
-                className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 text-sm" 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Ministry & Ministry Head Selection */}
-        <div className="space-y-1 md:col-span-2">
-          <div className="flex justify-between items-center">
-            <label className="text-sm font-semibold text-gray-800">Ministry & Ministry Head</label>
-            <button
-              type="button"
-              onClick={() => setIsMinistrySelectionOpen(true)}
-              className="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100/90 px-3 py-1.5 rounded-lg border border-indigo-200/50 transition cursor-pointer shadow-xs"
-            >
-              <svg className="w-4 h-4 mr-1 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              Select Ministry & Head
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1.5">
-            <div className="space-y-1">
-              <span className="text-[11px] font-medium text-gray-500 block">Ministry Name</span>
-              <input 
-                type="text" 
-                name="ministry" 
-                value={formData.ministry || ""} 
-                onChange={handleChange} 
-                placeholder="E.G. WORSHIP" 
-                className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 text-sm" 
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[11px] font-medium text-gray-500 block">Ministry Head</span>
-              <input 
-                type="text" 
-                name="ministryHead" 
-                value={formData.ministryHead || ""} 
-                onChange={handleChange} 
-                placeholder="E.G. BRO. JOHN" 
-                className="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 text-sm" 
-              />
-            </div>
-          </div>
+        {/* Tab Selection */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block px-2.5 pb-1">RECORD SECTIONS</span>
+          {tabItems.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full text-left px-3 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-between border ${
+                  isActive
+                    ? "bg-blue-50 text-[#1E3A8A] border-blue-200/60 shadow-xs"
+                    : "text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-50 border-transparent"
+                }`}
+              >
+                <span>{tab.label}</span>
+                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[#1E3A8A]" />}
+              </button>
+            );
+          })}
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
-      {/* Network Selector Sub-Form Modal */}
-      {isNetworkSelectionOpen && (
-        <div className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-150 flex flex-col max-h-[85vh] scale-100 transform transition-transform">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">Select Network Group</h3>
-                <p className="text-[11px] text-gray-500 mt-0.5">Choose an active church network to auto-populate fields</p>
+      {/* Main Tab Content Panel */}
+      <div className="flex-1 min-h-[400px] flex flex-col justify-between">
+        
+        <div className="space-y-6">
+          <div className="border-b border-gray-100 pb-3">
+            <h4 className="text-sm font-extrabold text-[#1E3A8A] uppercase tracking-widest">
+              {tabItems.find((t) => t.id === activeTab)?.label.split(" ").slice(1).join(" ")}
+            </h4>
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">Please supply accurate system metadata below.</p>
+          </div>
+
+          {/* TAB 1: PERSONAL DETAILS */}
+          {activeTab === "personal" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Membership ID</label>
+                <input
+                  type="text"
+                  name="membershipId"
+                  value={formData.membershipId || ""}
+                  onChange={handleFieldChange}
+                  placeholder="AUTO-GENERATED"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-gray-50/50"
+                />
               </div>
-              <button
-                type="button"
-                onClick={() => setIsNetworkSelectionOpen(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none p-1.5 hover:bg-gray-100 rounded-md transition cursor-pointer"
-              >
-                ✕
-              </button>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Last Name *</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName || ""}
+                  onChange={handleFieldChange}
+                  required
+                  placeholder="SMITH"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">First Name *</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName || ""}
+                  onChange={handleFieldChange}
+                  required
+                  placeholder="JOHN"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Middle Name</label>
+                <input
+                  type="text"
+                  name="middleName"
+                  value={formData.middleName || ""}
+                  onChange={handleFieldChange}
+                  placeholder="LEE"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Gender</label>
+                <select
+                  name="gender"
+                  value={formData.gender || "Male"}
+                  onChange={handleFieldChange}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                >
+                  <option value="Male">MALE</option>
+                  <option value="Female">FEMALE</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Birthday</label>
+                <input
+                  type="date"
+                  name="birthday"
+                  value={formData.birthday || ""}
+                  onChange={handleFieldChange}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block flex justify-between">
+                  <span>Age</span>
+                  {formData.birthday && <span className="text-[9px] text-[#1E3A8A] font-extrabold bg-blue-50 px-1.5 rounded-full select-none">Calculated</span>}
+                </label>
+                <input
+                  type="number"
+                  name="age"
+                  value={formData.age || ""}
+                  onChange={handleFieldChange}
+                  placeholder="Calculated"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs bg-gray-100"
+                />
+              </div>
             </div>
-            
-            <div className="p-4 overflow-y-auto space-y-2 max-h-[50vh] bg-white">
-              {networks.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {networks.map((net) => {
-                    const isSelected = formData.network === net.networkName && formData.networkLeader === net.networkLeader;
+          )}
+
+          {/* TAB 2: CONTACT DETAILS */}
+          {activeTab === "contact" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Contact Number</label>
+                  <input
+                    type="text"
+                    name="contactNumber"
+                    value={formData.contactNumber || ""}
+                    onChange={handleFieldChange}
+                    placeholder="+91-XXXXX-XXXXX / 09XXXXXXXXX"
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email || ""}
+                    onChange={handleFieldChange}
+                    placeholder="MEMBER@EMAIL.COM"
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Complete Address</label>
+                <textarea
+                  name="address"
+                  value={formData.address || ""}
+                  onChange={handleFieldChange}
+                  placeholder="ENTER RESIDENTIAL ADDRESS DETAILS..."
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: EDUCATIONAL BACKGROUND */}
+          {activeTab === "education" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Year Level</label>
+                <select
+                  name="yearLevel"
+                  value={formData.yearLevel || ""}
+                  onChange={handleFieldChange}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                >
+                  <option value="">SELECT YEAR LEVEL...</option>
+                  {yearLevels.map((group) => (
+                    <optgroup key={group.group} label={group.group.toUpperCase()}>
+                      {group.options.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Course / Educational Field</label>
+                {(() => {
+                  const isCollege = yearLevels.find(g => g.group === "College")?.options.includes(formData.yearLevel || "");
+                  const isGraduate = yearLevels.find(g => g.group === "Graduate School")?.options.includes(formData.yearLevel || "");
+
+                  if (isCollege || isGraduate) {
+                    const courses = isCollege ? collegeCourses : graduateCourses;
+                    return (
+                      <select
+                        name="course"
+                        value={formData.course || ""}
+                        onChange={handleFieldChange}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                      >
+                        <option value="">SELECT COURSE...</option>
+                        {courses.map((course) => (
+                          <option key={course} value={course}>{course.toUpperCase()}</option>
+                        ))}
+                        <option value="OTHER">OTHER (SPECIFY IN NOTES)</option>
+                      </select>
+                    );
+                  } else {
+                    return (
+                      <input
+                        type="text"
+                        name="course"
+                        value={formData.course || ""}
+                        onChange={handleFieldChange}
+                        placeholder={formData.yearLevel ? "N/A" : "ENTER BACKGROUND DETAILS..."}
+                        disabled={formData.yearLevel !== undefined && formData.yearLevel !== "" && !["PROFESSIONAL", "WORKING"].includes(formData.yearLevel)}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs disabled:bg-gray-50"
+                      />
+                    );
+                  }
+                })()}
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">School / Institution</label>
+                <input
+                  type="text"
+                  name="school"
+                  value={formData.school || ""}
+                  onChange={handleFieldChange}
+                  placeholder="SUBIC ACADEMY / UNIVERSITY OF CHRIST"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: CHURCH INFORMATION */}
+          {activeTab === "church" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Membership Status *</label>
+                <select
+                  name="membershipStatus"
+                  value={formData.membershipStatus || "Active"}
+                  onChange={handleFieldChange}
+                  required
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                >
+                  <option value="Active">ACTIVE</option>
+                  <option value="Inactive">INACTIVE</option>
+                  <option value="Transferred">TRANSFERRED</option>
+                  <option value="Deceased">DECEASED</option>
+                </select>
+              </div>
+              <div className="flex items-center pt-5 pl-2">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="voter"
+                    checked={formData.voter || false}
+                    onChange={handleFieldChange}
+                    className="h-4.5 w-4.5 text-[#1E3A8A] focus:ring-blue-500 border-gray-300 rounded transition"
+                  />
+                  <span className="text-xs font-bold text-gray-600 uppercase select-none">Registered Voter</span>
+                </label>
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Special Notes</label>
+                <textarea
+                  name="notes"
+                  value={formData.notes || ""}
+                  onChange={handleFieldChange}
+                  placeholder="ADD SYSTEM NOTES REGARDING FAMILIES, NETWORK TRANSITIONS, ETC."
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: BAPTISM INFORMATION */}
+          {activeTab === "baptism" && (
+            <div className="space-y-4">
+              <div className="bg-blue-50/50 border border-blue-200/50 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <h5 className="text-xs font-extrabold text-[#1E3A8A] uppercase">BAPTISM STATUS DECISION</h5>
+                  <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Verify if the member has already gone through water baptism.</p>
+                </div>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="isBaptized"
+                    checked={formData.isBaptized || false}
+                    onChange={handleFieldChange}
+                    className="h-5 w-5 text-[#1E3A8A] focus:ring-[#1E3A8A] border-gray-300 rounded transition"
+                  />
+                  <span className="text-xs font-extrabold text-gray-700 uppercase select-none">BAPTIZED</span>
+                </label>
+              </div>
+
+              {formData.isBaptized && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Baptism Date</label>
+                    <input
+                      type="date"
+                      name="baptismDate"
+                      value={formData.baptismDate || ""}
+                      onChange={handleFieldChange}
+                      className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Officiating Minister (Executed By)</label>
+                    <input
+                      type="text"
+                      name="baptismExecutedBy"
+                      value={formData.baptismExecutedBy && formData.baptismExecutedBy !== "N/A" ? formData.baptismExecutedBy : ""}
+                      onChange={handleFieldChange}
+                      placeholder="EVANGELIST / MINISTER"
+                      className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Witness 1</label>
+                    <input
+                      type="text"
+                      name="baptismWitness1"
+                      value={formData.baptismWitness1 && formData.baptismWitness1 !== "N/A" ? formData.baptismWitness1 : ""}
+                      onChange={handleFieldChange}
+                      placeholder="WITNESS NAME 1"
+                      className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Witness 2</label>
+                    <input
+                      type="text"
+                      name="baptismWitness2"
+                      value={formData.baptismWitness2 && formData.baptismWitness2 !== "N/A" ? formData.baptismWitness2 : ""}
+                      onChange={handleFieldChange}
+                      placeholder="WITNESS NAME 2"
+                      className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 6: FAMILY DETAILS */}
+          {activeTab === "family" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Marital Status</label>
+                <select
+                  name="maritalStatus"
+                  value={formData.maritalStatus || "Single"}
+                  onChange={handleFieldChange}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                >
+                  <option value="Single">SINGLE</option>
+                  <option value="Married">MARRIED</option>
+                  <option value="Widowed">WIDOWED</option>
+                  <option value="Divorced">DIVORCED</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Spouse Name (If married)</label>
+                <input
+                  type="text"
+                  name="spouseName"
+                  value={formData.spouseName || ""}
+                  onChange={handleFieldChange}
+                  placeholder="SPOUSE SPOUSE NAME"
+                  disabled={formData.maritalStatus !== "Married"}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs disabled:bg-gray-50"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Father&apos;s Name</label>
+                <input
+                  type="text"
+                  name="fathersName"
+                  value={formData.fathersName || ""}
+                  onChange={handleFieldChange}
+                  placeholder="FATHER'S FULL NAME"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Mother&apos;s Maiden Name</label>
+                <input
+                  type="text"
+                  name="mothersName"
+                  value={formData.mothersName || ""}
+                  onChange={handleFieldChange}
+                  placeholder="MOTHER'S FULL MAIDEN NAME"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 7: MINISTRY & NETWORKS INVOLVEMENT */}
+          {activeTab === "ministry" && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+                <div className="flex justify-between items-center pb-2.5 border-b border-gray-200">
+                  <span className="text-xs font-extrabold text-gray-700 uppercase">CHURCH NETWORK GROUP</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsNetworkSelectionOpen(true)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-bold bg-white hover:bg-blue-50 shadow-xs border border-gray-200 px-3 py-1.5 rounded-lg transition"
+                  >
+                    🔍 SELECT FROM LIST
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Network Connection</label>
+                    <input
+                      type="text"
+                      name="network"
+                      value={formData.network || ""}
+                      onChange={handleFieldChange}
+                      placeholder="E.G. YOUTH / KIDS"
+                      className="w-full border border-gray-300 bg-white rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Network Leader</label>
+                    <input
+                      type="text"
+                      name="networkLeader"
+                      value={formData.networkLeader || ""}
+                      onChange={handleFieldChange}
+                      placeholder="BROTHER JOEL / SISTER CLARA"
+                      className="w-full border border-gray-300 bg-white rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+                <div className="flex justify-between items-center pb-2.5 border-b border-gray-200">
+                  <span className="text-xs font-extrabold text-gray-700 uppercase">MINISTRY DEPARTMENTS</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsMinistrySelectionOpen(true)}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-white hover:bg-slate-50 shadow-xs border border-gray-200 px-3 py-1.5 rounded-lg transition"
+                  >
+                    🔍 SELECT FROM LIST
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Active Ministry</label>
+                    <input
+                      type="text"
+                      name="ministry"
+                      value={formData.ministry || ""}
+                      onChange={handleFieldChange}
+                      placeholder="E.G. WORSHIP / KIDS MINISTRY"
+                      className="w-full border border-gray-300 bg-white rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Ministry Supervisor / Head</label>
+                    <input
+                      type="text"
+                      name="ministryHead"
+                      value={formData.ministryHead || ""}
+                      onChange={handleFieldChange}
+                      placeholder="BROTHER JOHN"
+                      className="w-full border border-gray-300 bg-white rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Network Selection Sub Modal */}
+        {isNetworkSelectionOpen && (
+          <div className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs flex items-center justify-center z-[110] p-4 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 flex flex-col max-h-[80vh]">
+              <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-[#1E3A8A] text-white">
+                <div>
+                  <h5 className="text-sm font-bold">Select Active Network</h5>
+                  <p className="text-[10px] text-blue-100 mt-0.5 font-semibold">Choose network link details for the database</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNetworkSelectionOpen(false)}
+                  className="text-white hover:text-blue-200 font-bold text-sm leading-none p-1 bg-transparent border-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-3 overflow-y-auto space-y-2 max-h-[450px]">
+                {networks.length > 0 ? (
+                  networks.map((net) => {
+                    const isSelected = formData.network === net.networkName;
                     return (
                       <button
                         key={net.id}
                         type="button"
                         onClick={() => {
-                          setFormData((prev) => ({
+                          setFormData(prev => ({
                             ...prev,
-                            network: net.networkName,
-                            networkLeader: net.networkLeader
+                            network: net.networkName.toUpperCase(),
+                            networkLeader: net.networkLeader.toUpperCase()
                           }));
                           setIsNetworkSelectionOpen(false);
                         }}
-                        className={`w-full text-left p-3.5 rounded-lg border transition flex items-center justify-between group ${
+                        className={`w-full text-left p-3 rounded-lg border transition-all flex items-center justify-between group ${
                           isSelected
-                            ? "border-blue-600 bg-blue-50/50"
-                            : "border-gray-200 hover:border-blue-400 hover:bg-gray-50/50"
+                            ? "border-blue-600 bg-blue-50/50 text-[#1E3A8A]"
+                            : "border-gray-200 hover:border-blue-400 hover:bg-gray-50"
                         }`}
                       >
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900 group-hover:text-blue-600">{net.networkName}</span>
-                            {isSelected && (
-                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">
-                                Selected
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500 block mt-0.5 font-medium">Leader: {net.networkLeader}</span>
+                          <span className="text-xs font-bold block">{net.networkName.toUpperCase()}</span>
+                          <span className="text-[11px] text-gray-500 block">LEADER: {net.networkLeader.toUpperCase()}</span>
                         </div>
-                        <div className="px-3 py-1 bg-white group-hover:bg-blue-600 border border-gray-200 group-hover:border-blue-600 text-xs font-semibold text-gray-700 group-hover:text-white rounded-md transition shadow-xs cursor-pointer">
-                          Choose
-                        </div>
+                        <span className="text-[10px] font-extrabold text-[#1E3A8A] border border-blue-200 bg-blue-50/50 px-2.5 py-1 rounded-md">
+                          USE NETWORK
+                        </span>
                       </button>
                     );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-10 px-4 text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl space-y-2">
-                  <svg className="mx-auto h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  <p className="font-semibold text-gray-500">No Networks Available</p>
-                  <p className="text-[11px] text-gray-400">Please register networks under the &quot;Manage Networks&quot; dashboard first.</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData(prev => ({ ...prev, network: "", networkLeader: "" }));
-                  setIsNetworkSelectionOpen(false);
-                }}
-                className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold rounded-md transition cursor-pointer"
-              >
-                Clear Selection
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsNetworkSelectionOpen(false)}
-                className="px-4 py-1.5 text-xs border border-gray-300 rounded-md font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer"
-              >
-                Close
-              </button>
+                  })
+                ) : (
+                  <div className="p-10 text-center text-xs text-gray-400">
+                    No active networks catalogued. Create them via dashboard managers.
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, network: "", networkLeader: "" }));
+                    setIsNetworkSelectionOpen(false);
+                  }}
+                  className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-bold rounded-lg transition"
+                >
+                  CLEAR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsNetworkSelectionOpen(false)}
+                  className="px-4 py-1.5 text-xs border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-bold transition"
+                >
+                  CLOSE
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Ministry Selector Sub-Form Modal */}
-      {isMinistrySelectionOpen && (
-        <div className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-150 flex flex-col max-h-[85vh] scale-100 transform transition-transform">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">Select Church Ministry</h3>
-                <p className="text-[11px] text-gray-500 mt-0.5">Choose an active church ministry to auto-populate fields</p>
+        {/* Ministry Selection Sub Modal */}
+        {isMinistrySelectionOpen && (
+          <div className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs flex items-center justify-center z-[110] p-4 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 flex flex-col max-h-[80vh]">
+              <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-[#1E3A8A] text-white">
+                <div>
+                  <h5 className="text-sm font-bold">Select Active Ministry</h5>
+                  <p className="text-[10px] text-blue-100 mt-0.5 font-semibold">Choose ministry link details for the database</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMinistrySelectionOpen(false)}
+                  className="text-white hover:text-blue-200 font-bold text-sm leading-none p-1 bg-transparent border-none"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsMinistrySelectionOpen(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none p-1.5 hover:bg-gray-100 rounded-md transition cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="p-4 overflow-y-auto space-y-2 max-h-[50vh] bg-white">
-              {ministries.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {ministries.map((min) => {
-                    const isSelected = formData.ministry === min.ministryName && formData.ministryHead === min.ministryHead;
+              <div className="p-3 overflow-y-auto space-y-2 max-h-[450px]">
+                {ministries.length > 0 ? (
+                  ministries.map((min) => {
+                    const isSelected = formData.ministry === min.ministryName;
                     return (
                       <button
                         key={min.id}
                         type="button"
                         onClick={() => {
-                          setFormData((prev) => ({
+                          setFormData(prev => ({
                             ...prev,
-                            ministry: min.ministryName,
-                            ministryHead: min.ministryHead
+                            ministry: min.ministryName.toUpperCase(),
+                            ministryHead: min.ministryHead.toUpperCase()
                           }));
                           setIsMinistrySelectionOpen(false);
                         }}
-                        className={`w-full text-left p-3.5 rounded-lg border transition flex items-center justify-between group ${
+                        className={`w-full text-left p-3 rounded-lg border transition-all flex items-center justify-between group ${
                           isSelected
-                            ? "border-indigo-600 bg-indigo-50/50"
-                            : "border-gray-200 hover:border-indigo-400 hover:bg-gray-50/50"
+                            ? "border-blue-600 bg-blue-50/50 text-[#1E3A8A]"
+                            : "border-gray-200 hover:border-blue-400 hover:bg-gray-50"
                         }`}
                       >
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900 group-hover:text-indigo-600">{min.ministryName}</span>
-                            {isSelected && (
-                              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">
-                                Selected
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500 block mt-0.5 font-medium">Head: {min.ministryHead}</span>
+                          <span className="text-xs font-bold block">{min.ministryName.toUpperCase()}</span>
+                          <span className="text-[11px] text-gray-500 block">HEAD: {min.ministryHead.toUpperCase()}</span>
                         </div>
-                        <div className="px-3 py-1 bg-white group-hover:bg-indigo-600 border border-gray-200 group-hover:border-indigo-600 text-xs font-semibold text-gray-700 group-hover:text-white rounded-md transition shadow-xs cursor-pointer">
-                          Choose
-                        </div>
+                        <span className="text-[10px] font-extrabold text-[#1E3A8A] border border-blue-200 bg-blue-50/50 px-2.5 py-1 rounded-md">
+                          USE MINISTRY
+                        </span>
                       </button>
                     );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-10 px-4 text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl space-y-2">
-                  <svg className="mx-auto h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  <p className="font-semibold text-gray-500">No Ministries Available</p>
-                  <p className="text-[11px] text-gray-400">Please register ministries under the &quot;Manage Ministries&quot; dashboard first.</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData(prev => ({ ...prev, ministry: "", ministryHead: "" }));
-                  setIsMinistrySelectionOpen(false);
-                }}
-                className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold rounded-md transition cursor-pointer"
-              >
-                Clear Selection
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsMinistrySelectionOpen(false)}
-                className="px-4 py-1.5 text-xs border border-gray-300 rounded-md font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer"
-              >
-                Close
-              </button>
+                  })
+                ) : (
+                  <div className="p-10 text-center text-xs text-gray-400">
+                    No active ministries catalogued. Create them via dashboard managers.
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, ministry: "", ministryHead: "" }));
+                    setIsMinistrySelectionOpen(false);
+                  }}
+                  className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-bold rounded-lg transition"
+                >
+                  CLEAR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMinistrySelectionOpen(false)}
+                  className="px-4 py-1.5 text-xs border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-bold transition"
+                >
+                  CLOSE
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="flex justify-between items-center pt-4 border-t">
-        <div>
-          {initialData && (
+        {/* Footer Actions Panel */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-5 mt-8 border-t border-gray-100 gap-4">
+          <div>
+            {initialData && (
+              <button
+                type="button"
+                onClick={() => generateBaptismalCertificate(initialData)}
+                className="px-4 py-2 border border-amber-300 rounded-lg text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/70 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              >
+                📜 EXPORT WORD certificate
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end">
             <button
               type="button"
-              onClick={() => generateBaptismalCertificate(initialData)}
-              className="px-4 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none flex items-center gap-2"
+              onClick={onCancel}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-600 bg-white hover:bg-gray-50 transition cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Print Baptismal Certificate
+              CANCEL
             </button>
-          )}
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="px-5 py-2 bg-[#1E3A8A] text-white text-xs font-bold rounded-lg hover:bg-[#0f2d71] transition disabled:opacity-50 cursor-pointer shadow-sm uppercase tracking-wide"
+            >
+              {isSaving ? "Saving..." : "Save Member Information"}
+            </button>
+          </div>
         </div>
-        <div className="flex space-x-3">
-          <button type="button" onClick={onCancel} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none">
-            Cancel
-          </button>
-          <button type="submit" disabled={isSaving} className="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none disabled:opacity-50">
-            {isSaving ? "Saving..." : "Save Member"}
-          </button>
-        </div>
+
       </div>
+
     </form>
   );
 }

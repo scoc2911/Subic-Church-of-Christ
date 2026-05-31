@@ -2,13 +2,74 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { subscribeToMembers, createMember, updateMember, deleteMember, Member, subscribeToNetworks, createNetwork, deleteNetwork, Network, updateNetwork, Ministry, subscribeToMinistries, createMinistry, updateMinistry, deleteMinistry, ChurchEvent, subscribeToEvents, createEvent, updateEvent, deleteEvent } from "@/lib/api";
+import { 
+  subscribeToMembers, 
+  createMember, 
+  updateMember, 
+  deleteMember, 
+  Member, 
+  subscribeToNetworks, 
+  Network, 
+  Ministry, 
+  subscribeToMinistries, 
+  ChurchEvent, 
+  subscribeToEvents, 
+  createEvent, 
+  updateEvent, 
+  deleteEvent 
+} from "@/lib/api";
 import { MemberForm, calculateAge } from "@/components/MemberForm";
 import { Logo } from "@/components/Logo";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import * as Dialog from "@radix-ui/react-dialog";
-import { PlusIcon, Pencil1Icon, TrashIcon, MagnifyingGlassIcon, CalendarIcon, ClockIcon } from "@radix-ui/react-icons";
-import { DataAnalysis } from "@/components/DataAnalysis";
+import { 
+  PlusIcon, 
+  Pencil1Icon, 
+  TrashIcon, 
+  CalendarIcon, 
+  ClockIcon 
+} from "@radix-ui/react-icons";
+
+// Premium Module Imports
+import { DashboardModule } from "@/components/DashboardModule";
+import { MemberDirectoryModule } from "@/components/MemberDirectoryModule";
+import { BaptismRecordsModule } from "@/components/BaptismRecordsModule";
+import { AttendanceModule } from "@/components/AttendanceModule";
+import { ReportsModule } from "@/components/ReportsModule";
+import { MinistriesModule } from "@/components/MinistriesModule";
+import { NetworksModule } from "@/components/NetworksModule";
+import { UserManagementModule } from "@/components/UserManagementModule";
+import { SystemSettingsModule } from "@/components/SystemSettingsModule";
+
+// Lucide Icons
+import { 
+  LayoutDashboard, 
+  Users, 
+  Droplet, 
+  ListTodo, 
+  FilePieChart, 
+  Building, 
+  Layers, 
+  ShieldCheck, 
+  Settings, 
+  LogOut, 
+  Menu, 
+  X, 
+  AlertCircle,
+  Calendar,
+  CalendarDays
+} from "lucide-react";
+
+type ActiveTab = 
+  | "dashboard"
+  | "members"
+  | "baptisms"
+  | "attendance"
+  | "reports"
+  | "ministries"
+  | "networks"
+  | "users"
+  | "settings";
 
 const calculateCountdown = (dateString: string): { text: string; passed: boolean } => {
   const eventDate = new Date(dateString).getTime();
@@ -17,7 +78,7 @@ const calculateCountdown = (dateString: string): { text: string; passed: boolean
   const distance = eventDate - now;
 
   if (distance < 0) {
-    return { text: "Passed", passed: true };
+    return { text: "Completed", passed: true };
   }
 
   const days = Math.floor(distance / (1000 * 60 * 60 * 24));
@@ -35,31 +96,23 @@ const calculateCountdown = (dateString: string): { text: string; passed: boolean
 
 export default function Home() {
   const { user, role, loading, login, logout } = useAuth();
+  
+  // Real-time Firestore Subscribed States
   const [members, setMembers] = useState<Member[]>([]);
   const [networks, setNetworks] = useState<Network[]>([]);
-  const [search, setSearch] = useState("");
-  const [baptismFilter, setBaptismFilter] = useState<"all" | "baptized" | "unbaptized">("all");
-  const [networkFilter, setNetworkFilter] = useState<string>("all");
-  const [ministryFilter, setMinistryFilter] = useState<string>("all");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
-  const [isMinistryModalOpen, setIsMinistryModalOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"home" | "members" | "analysis">("home");
+  const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [events, setEvents] = useState<ChurchEvent[]>([]);
+
+  // Layout & Navigation State
+  const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Modals States
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [newNetworkName, setNewNetworkName] = useState("");
-  const [newNetworkLeader, setNewNetworkLeader] = useState("");
-  const [editingNetworkId, setEditingNetworkId] = useState<string | null>(null);
-  const [isSavingNetwork, setIsSavingNetwork] = useState(false);
-  
-  const [ministries, setMinistries] = useState<Ministry[]>([]);
-  const [newMinistryName, setNewMinistryName] = useState("");
-  const [newMinistryHead, setNewMinistryHead] = useState("");
-  const [editingMinistryId, setEditingMinistryId] = useState<string | null>(null);
-  const [isSavingMinistry, setIsSavingMinistry] = useState(false);
-  
-  const [events, setEvents] = useState<ChurchEvent[]>([]);
+  // Event Scheduler modal state (Compatible with original flow)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [newEventName, setNewEventName] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
@@ -73,12 +126,13 @@ export default function Home() {
     onConfirm: () => void;
   }>({ isOpen: false, title: "", description: "", onConfirm: () => {} });
 
+  // Subscriptions hooks
   useEffect(() => {
     if (user && role) {
       const unsubscribe = subscribeToMembers((data) => {
         setMembers(data);
 
-        // Auto-update missing or incorrect age in the database
+        // Auto-update missing or incorrect age in database
         if (role === "admin") {
           data.forEach(async (member) => {
             if (member.birthday) {
@@ -88,7 +142,7 @@ export default function Home() {
                 try {
                   await updateMember(member.id!, { age: correctAge });
                 } catch (err) {
-                  console.error("Failed to auto-update age for member:", member.id, err);
+                  console.error("Failed to auto-update age", err);
                 }
               }
             }
@@ -126,270 +180,28 @@ export default function Home() {
     }
   }, [user, role]);
 
-  const handleAddNetwork = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNetworkName.trim() || !newNetworkLeader.trim()) {
-      alert("Both Network Name and Network Leader are required.");
-      return;
-    }
-    setIsSavingNetwork(true);
-    try {
-      if (editingNetworkId) {
-        const oldNetwork = networks.find(n => n.id === editingNetworkId);
-        await updateNetwork(editingNetworkId, {
-          networkName: newNetworkName.trim(),
-          networkLeader: newNetworkLeader.trim(),
-        });
-        
-        if (oldNetwork) {
-          const membersToUpdate = members.filter(m => m.network === oldNetwork.networkName);
-          await Promise.all(membersToUpdate.map(m => updateMember(m.id!, {
-            network: newNetworkName.trim(),
-            networkLeader: newNetworkLeader.trim()
-          })));
-        }
-        
-        setEditingNetworkId(null);
-      } else {
-        await createNetwork({
-          networkName: newNetworkName.trim(),
-          networkLeader: newNetworkLeader.trim(),
-        });
-      }
-      setNewNetworkName("");
-      setNewNetworkLeader("");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save network.");
-    } finally {
-      setIsSavingNetwork(false);
-    }
-  };
-
-  const handleDeleteNetwork = async (id: string, name: string) => {
-    setConfirmConfig({
-      isOpen: true,
-      title: "Delete Network",
-      description: `Are you sure you want to delete the network "${name}"?`,
-      onConfirm: async () => {
-        try {
-          await deleteNetwork(id);
-          const membersToUpdate = members.filter(m => m.network === name);
-          await Promise.all(membersToUpdate.map(m => updateMember(m.id!, {
-            network: "",
-            networkLeader: ""
-          })));
-        } catch (err) {
-          console.error(err);
-          alert("Failed to delete network.");
-        }
-      },
-    });
-  };
-
-  const handleEditNetwork = (net: Network) => {
-    setEditingNetworkId(net.id!);
-    setNewNetworkName(net.networkName);
-    setNewNetworkLeader(net.networkLeader);
-  };
-
-  const handleCancelEditNetwork = () => {
-    setEditingNetworkId(null);
-    setNewNetworkName("");
-    setNewNetworkLeader("");
-  };
-
-  const handleAddMinistry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMinistryName.trim() || !newMinistryHead.trim()) {
-      alert("Both Ministry Name and Ministry Head are required.");
-      return;
-    }
-    setIsSavingMinistry(true);
-    try {
-      if (editingMinistryId) {
-        const oldMinistry = ministries.find(m => m.id === editingMinistryId);
-        await updateMinistry(editingMinistryId, {
-          ministryName: newMinistryName.trim(),
-          ministryHead: newMinistryHead.trim(),
-        });
-        
-        if (oldMinistry) {
-          const membersToUpdate = members.filter(m => m.ministry === oldMinistry.ministryName);
-          await Promise.all(membersToUpdate.map(m => updateMember(m.id!, {
-            ministry: newMinistryName.trim(),
-            ministryHead: newMinistryHead.trim()
-          })));
-        }
-        
-        setEditingMinistryId(null);
-      } else {
-        await createMinistry({
-          ministryName: newMinistryName.trim(),
-          ministryHead: newMinistryHead.trim(),
-        });
-      }
-      setNewMinistryName("");
-      setNewMinistryHead("");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save ministry.");
-    } finally {
-      setIsSavingMinistry(false);
-    }
-  };
-
-  const handleDeleteMinistry = async (id: string, name: string) => {
-    setConfirmConfig({
-      isOpen: true,
-      title: "Delete Ministry",
-      description: `Are you sure you want to delete the ministry "${name}"?`,
-      onConfirm: async () => {
-        try {
-          await deleteMinistry(id);
-          const membersToUpdate = members.filter(m => m.ministry === name);
-          await Promise.all(membersToUpdate.map(m => updateMember(m.id!, {
-            ministry: "",
-            ministryHead: ""
-          })));
-        } catch (err) {
-          console.error(err);
-          alert("Failed to delete ministry.");
-        }
-      },
-    });
-  };
-
-  const handleEditMinistry = (min: Ministry) => {
-    setEditingMinistryId(min.id!);
-    setNewMinistryName(min.ministryName);
-    setNewMinistryHead(min.ministryHead);
-  };
-
-  const handleCancelEditMinistry = () => {
-    setEditingMinistryId(null);
-    setNewMinistryName("");
-    setNewMinistryHead("");
-  };
-
-  const handleAddEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEventName.trim() || !newEventDate.trim()) {
-      alert("Both Event Name and Event Date/Time are required.");
-      return;
-    }
-    setIsSavingEvent(true);
-    try {
-      if (editingEventId) {
-        await updateEvent(editingEventId, {
-          eventName: newEventName.trim(),
-          eventDate: newEventDate.trim(),
-        });
-        setEditingEventId(null);
-      } else {
-        await createEvent({
-          eventName: newEventName.trim(),
-          eventDate: newEventDate.trim(),
-        });
-      }
-      setNewEventName("");
-      setNewEventDate("");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save event.");
-    } finally {
-      setIsSavingEvent(false);
-    }
-  };
-
-  const handleDeleteEvent = async (id: string, name: string) => {
-    setConfirmConfig({
-      isOpen: true,
-      title: "Delete Event",
-      description: `Are you sure you want to delete the event "${name}"?`,
-      onConfirm: async () => {
-        try {
-          await deleteEvent(id);
-        } catch (err) {
-          console.error(err);
-          alert("Failed to delete event.");
-        }
-      },
-    });
-  };
-
-  const handleEditEvent = (evt: ChurchEvent) => {
-    setEditingEventId(evt.id!);
-    setNewEventName(evt.eventName);
-    setNewEventDate(evt.eventDate); // Expects "YYYY-MM-DDTHH:mm" for <input type="datetime-local" />
-  };
-
-  const handleCancelEditEvent = () => {
-    setEditingEventId(null);
-    setNewEventName("");
-    setNewEventDate("");
-  };
-
-  const handleAddClick = () => {
-    setEditingMember(undefined);
-    setIsModalOpen(true);
-  };
-
-  const getNextMembershipId = () => {
-    // Generate an auto-incrementing basic ID based on count.
-    // e.g. 0001, 0002...
-    return String(members.length + 1).padStart(4, '0');
-  };
-
-  const handleEditClick = (member: Member) => {
-    setEditingMember(member);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: string, name: string) => {
-    setConfirmConfig({
-      isOpen: true,
-      title: "Delete Member",
-      description: `Are you sure you want to delete ${name}?`,
-      onConfirm: async () => {
-        await deleteMember(id);
-      }
-    });
-  };
-
-  const handleSubmit = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
-    setIsSaving(true);
-    try {
-      if (editingMember) {
-        await updateMember(editingMember.id!, data);
-      } else {
-        await createMember(data);
-      }
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save member.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
+  // Auth gate checks
   if (loading) {
-    return <div className="flex h-screen items-center justify-center p-4">Loading...</div>;
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-gray-50 flex-col gap-4">
+        <div className="h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm text-gray-500 font-semibold uppercase tracking-wider animate-pulse">Loading Workspace Module...</p>
+      </div>
+    );
   }
 
   if (!user) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-gray-100 flex flex-col items-center">
-          <Logo size={100} className="mb-4 text-blue-600 animate-fade-in" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-1 text-center">Subic Church of Christ</h1>
-          <p className="text-gray-500 mb-8 text-center text-sm">Data Entry & Management System</p>
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-150 flex flex-col items-center">
+          <Logo size={80} className="mb-4 text-blue-600" />
+          <h1 className="text-2xl font-black text-gray-950 mb-1 text-center tracking-tight">SUBIC CHURCH OF CHRIST</h1>
+          <p className="text-gray-400 mb-8 text-center text-sm font-semibold uppercase tracking-widest">Digital Board & Registry</p>
           <button
             onClick={login}
-            className="w-full h-12 bg-gray-900 text-white rounded-md font-semibold hover:bg-gray-800 transition flex items-center justify-center gap-2"
+            className="w-full h-12 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2.5 cursor-pointer shadow-md shadow-blue-600/10"
           >
-            Sign in with Google
+            Sign in with Google Account
           </button>
         </div>
       </div>
@@ -399,642 +211,410 @@ export default function Home() {
   if (role !== "admin" && role !== "viewer") {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 p-4 flex-col gap-4">
-        <div className="bg-orange-100 text-orange-600 rounded-full h-16 w-16 flex items-center justify-center mb-4">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-          </svg>
+        <div className="bg-orange-100 text-orange-600 rounded-full h-16 w-16 flex items-center justify-center mb-2 shadow-inner">
+          <AlertCircle className="w-8 h-8" />
         </div>
-        <p className="text-xl font-medium text-gray-700">Account Pending Approval</p>
-        <p className="text-gray-500 text-center max-w-sm">
-          Your account ({user.email}) does not have access yet. Please contact your administrator.
+        <p className="text-xl font-bold text-gray-800 tracking-tight">Access Approval Expected</p>
+        <p className="text-gray-400 text-center max-w-sm text-sm">
+          Your account (<span className="font-bold text-gray-700">{user.email}</span>) must be approved by SCOC administrators to view or record data details.
         </p>
-        <button onClick={logout} className="text-blue-600 font-medium hover:underline mt-4">
-          Sign out
+        <button onClick={logout} className="text-blue-600 font-bold hover:underline mt-4 text-sm cursor-pointer">
+          Sign out of Google
         </button>
       </div>
     );
   }
 
-  const filteredMembers = members.filter((m) => {
-    const term = search.toLowerCase();
-    const matchesSearch = (
-      m.firstName.toLowerCase().includes(term) ||
-      m.lastName.toLowerCase().includes(term) ||
-      m.membershipId?.toLowerCase().includes(term)
-    );
+  // Member Save Submit Handler
+  const handleMemberSubmit = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
+    setIsSaving(true);
+    try {
+      if (editingMember) {
+        await updateMember(editingMember.id!, data);
+        alert("Member profile successfully updated.");
+      } else {
+        await createMember(data);
+        alert("New member profile created successfully.");
+      }
+      setIsFormModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save member.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-    if (!matchesSearch) return false;
+  const handleEditMember = (member: Member) => {
+    setEditingMember(member);
+    setIsFormModalOpen(true);
+  };
 
-    const isBaptized = m.isBaptized === true || (
-      m.baptismDate !== undefined &&
-      m.baptismDate !== "" &&
-      m.baptismDate !== "N/A" &&
-      m.baptismDate !== "--/--/----"
-    ) || (
-      m.baptismExecutedBy !== undefined &&
-      m.baptismExecutedBy !== "" &&
-      m.baptismExecutedBy !== "N/A"
-    );
+  const handleDeleteMember = (id: string, name: string) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "Delete Member Record",
+      description: `Are you absolutely sure you want to permanently delete the profile of ${name}? This query is irreversible.`,
+      onConfirm: async () => {
+        try {
+          await deleteMember(id);
+        } catch (err) {
+          console.error(err);
+          alert("Failed to delete member.");
+        }
+      }
+    });
+  };
 
-    if (baptismFilter === "baptized" && !isBaptized) return false;
-    if (baptismFilter === "unbaptized" && isBaptized) return false;
+  // Event Scheduler Submit Handlers
+  const handleAddEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEventName.trim() || !newEventDate) {
+      alert("Both Event Name and Date are required.");
+      return;
+    }
 
-    if (networkFilter !== "all" && m.network !== networkFilter) return false;
-    if (ministryFilter !== "all" && m.ministry !== ministryFilter) return false;
+    setIsSavingEvent(true);
+    try {
+      const formattedName = newEventName.trim().toUpperCase();
+      if (editingEventId) {
+        await updateEvent(editingEventId, {
+          eventName: formattedName,
+          eventDate: newEventDate
+        });
+        setEditingEventId(null);
+      } else {
+        await createEvent({
+          eventName: formattedName,
+          eventDate: newEventDate
+        });
+      }
+      setNewEventName("");
+      setNewEventDate("");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to schedule event.");
+    } finally {
+      setIsSavingEvent(false);
+    }
+  };
 
-    return true;
-  }).sort((a, b) => {
-    const idA = a.membershipId || "";
-    const idB = b.membershipId || "";
-    return idA.localeCompare(idB, undefined, { numeric: true });
-  });
+  const handleEditEvent = (evt: ChurchEvent) => {
+    setEditingEventId(evt.id!);
+    setNewEventName(evt.eventName);
+    setNewEventDate(evt.eventDate);
+  };
+
+  const handleCancelEditEvent = () => {
+    setEditingEventId(null);
+    setNewEventName("");
+    setNewEventDate("");
+  };
+
+  const handleDeleteEvent = (id: string, name: string) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "Delete Event Schedule",
+      description: `Are you sure you want to delete the scheduled event "${name}"? Details containing historical logs will remain unaffected.`,
+      onConfirm: async () => {
+        try {
+          await deleteEvent(id);
+          if (editingEventId === id) {
+            handleCancelEditEvent();
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Failed to delete scheduled event.");
+        }
+      }
+    });
+  };
+
+  const menuItems = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
+    { id: "members", label: "Registry Directory", icon: Users, adminOnly: false },
+    { id: "baptisms", label: "Baptismal Registry", icon: Droplet, adminOnly: false },
+    { id: "attendance", label: "Attendance Tracker", icon: ListTodo, adminOnly: false },
+    { id: "reports", label: "Demographics & Reports", icon: FilePieChart, adminOnly: false },
+    { id: "ministries", label: "Ministries", icon: Building, adminOnly: true },
+    { id: "networks", label: "Networks", icon: Layers, adminOnly: true },
+    { id: "users", label: "Access Rights", icon: ShieldCheck, adminOnly: true },
+    { id: "settings", label: "System Setup", icon: Settings, adminOnly: true },
+  ] as const;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <button onClick={() => setCurrentView("home")} className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition outline-none border-none bg-transparent">
-             <Logo size={36} className="h-9 w-9 text-blue-600" />
-             <h1 className="text-lg pb-[2px] font-semibold tracking-tight text-gray-950 hidden sm:block">SCOC Data Entry</h1>
-          </button>
-          <div className="flex items-center space-x-6">
-            <div className="hidden md:flex flex-col items-end">
-              <span className="text-sm font-medium text-gray-900 leading-tight">{user.displayName || user.email?.split('@')[0]}</span>
-              <span className="text-xs text-blue-600 font-medium uppercase tracking-wider">{role}</span>
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row print:bg-white text-gray-800">
+      
+      {/* SIDEBAR NAVIGATION PANEL (Desktop) */}
+      <aside className="w-68 bg-white border-r border-gray-150 flex-col justify-between hidden md:flex shrink-0 print:hidden select-none">
+        <div>
+          {/* Logo Brand Header */}
+          <div className="h-16 px-5 border-b border-gray-100 flex items-center gap-2.5">
+            <Logo size={36} className="text-blue-600" />
+            <div>
+              <span className="text-sm font-black text-gray-950 uppercase tracking-tight block">SCOC Admin</span>
+              <span className="text-[9px] text-gray-400 font-extrabold uppercase tracking-widest block leading-none">Database Console</span>
             </div>
-            <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors">
-              Log out
-            </button>
           </div>
+
+          {/* Nav Items Link List */}
+          <nav className="p-4 space-y-1">
+            {menuItems.map((item) => {
+              if (item.adminOnly && role !== "admin") return null;
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-xs font-bold transition-all border outline-none cursor-pointer ${
+                    isActive
+                      ? "bg-blue-50/70 border-blue-100 text-blue-700 shadow-2xs"
+                      : "bg-transparent border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
+
+        {/* User Identity Panel */}
+        <div className="p-4 border-t border-gray-100 space-y-3 bg-gray-50/50">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs rounded-full border border-blue-200">
+              {user.displayName?.[0] || user.email?.[0] || "U"}
+            </div>
+            <div className="truncate flex-1">
+              <span className="text-xs font-black text-gray-950 leading-tight block truncate">
+                {user.displayName || user.email?.split("@")[0]}
+              </span>
+              <span className="text-[10px] text-blue-600 font-extrabold uppercase mt-0.5 inline-block leading-none">
+                {role} account
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={logout}
+            className="w-full inline-flex items-center justify-center gap-1.5 py-2 border border-gray-200 hover:border-red-200 text-gray-500 hover:text-red-600 hover:bg-red-50 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer bg-white"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Log Out Portal
+          </button>
+        </div>
+      </aside>
+
+      {/* MOBILE HEADER NAVIGATION */}
+      <header className="h-16 bg-white border-b border-gray-200 px-4 flex items-center justify-between md:hidden print:hidden shrink-0">
+        <div className="flex items-center gap-2">
+          <Logo size={32} className="text-blue-600" />
+          <h1 className="text-sm font-black text-gray-950 tracking-tight uppercase">SCOC Console</h1>
+        </div>
+
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 hover:bg-gray-50 rounded-lg text-gray-600 border border-gray-200 cursor-pointer"
+        >
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        {currentView === "home" && (
-          <div className="flex flex-col items-center justify-center pt-8 md:pt-16 text-center animate-fade-in">
-             <Logo size={64} className="text-blue-600 mb-6" />
-             <h2 className="text-3xl font-bold text-gray-900 mb-3">Welcome to SCOC Data Management</h2>
-             <p className="text-gray-500 max-w-lg mb-12 text-sm md:text-base">Manage church members, keep track of networks, and maintain accurate records efficiently.</p>
-             
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-                <button onClick={() => setCurrentView("members")} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:border-blue-300 hover:shadow-md transition text-left cursor-pointer group flex flex-col items-start w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                   <div className="bg-blue-50 text-blue-600 h-14 w-14 rounded-xl flex items-center justify-center mb-5 group-hover:bg-blue-600 group-hover:text-white transition shadow-sm">
-                      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                   </div>
-                   <h3 className="text-xl font-semibold text-gray-900 mb-2">Member Directory</h3>
-                   <p className="text-sm text-gray-500 leading-relaxed max-w-xs">View, add, edit, and search the complete list of church members.</p>
-                </button>
-                
-                {role === "admin" && (
-                   <>
-                   <button onClick={() => setIsNetworkModalOpen(true)} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:border-purple-300 hover:shadow-md transition text-left cursor-pointer group flex flex-col items-start w-full focus:outline-none focus:ring-2 focus:ring-purple-500">
-                      <div className="bg-purple-50 text-purple-600 h-14 w-14 rounded-xl flex items-center justify-center mb-5 group-hover:bg-purple-600 group-hover:text-white transition shadow-sm">
-                         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                         </svg>
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Manage Networks</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed max-w-xs">Create and manage church ministry networks and leaders.</p>
-                   </button>
-                   <button onClick={() => setIsMinistryModalOpen(true)} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition text-left cursor-pointer group flex flex-col items-start w-full focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                      <div className="bg-indigo-50 text-indigo-600 h-14 w-14 rounded-xl flex items-center justify-center mb-5 group-hover:bg-indigo-600 group-hover:text-white transition shadow-sm">
-                         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                         </svg>
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Manage Ministries</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed max-w-xs">Create and manage church ministries and ministry heads.</p>
-                   </button>
-                   <button onClick={() => setIsEventModalOpen(true)} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:border-orange-300 hover:shadow-md transition text-left cursor-pointer group flex flex-col items-start w-full focus:outline-none focus:ring-2 focus:ring-orange-500">
-                      <div className="bg-orange-50 text-orange-600 h-14 w-14 rounded-xl flex items-center justify-center mb-5 group-hover:bg-orange-600 group-hover:text-white transition shadow-sm">
-                         <CalendarIcon className="w-7 h-7" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Church Events</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed max-w-xs">Schedule events and view upcoming event countdowns.</p>
-                   </button>
-                   <button onClick={() => setCurrentView("analysis")} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:border-teal-300 hover:shadow-md transition text-left cursor-pointer group flex flex-col items-start w-full focus:outline-none focus:ring-2 focus:ring-teal-500">
-                      <div className="bg-teal-50 text-teal-600 h-14 w-14 rounded-xl flex items-center justify-center mb-5 group-hover:bg-teal-600 group-hover:text-white transition shadow-sm">
-                         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                         </svg>
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Data Analysis</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed max-w-xs">View charts and insights on member demographics.</p>
-                   </button>
-                   </>
-                )}
-             </div>
-          </div>
-        )}
-        
-        {currentView === "members" && (
-          <div className="animate-fade-in space-y-6">
-            {/* Top Row: Section Title / Breadcrumb and Action Buttons */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-3.5">
+      {/* MOBILE NAVIGATION DROPDOWN DRAWER */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 top-16 bg-gray-950/20 backdrop-blur-xs z-50 md:hidden flex flex-col justify-start print:hidden">
+          <div className="bg-white border-b border-gray-200 py-3.5 px-4 space-y-1 animate-slide-down">
+            {menuItems.map((item) => {
+              if (item.adminOnly && role !== "admin") return null;
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
                 <button
-                  onClick={() => setCurrentView("home")}
-                  className="p-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition flex items-center justify-center cursor-pointer shrink-0 shadow-sm"
-                  title="Back to Home"
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-bold cursor-pointer ${
+                    isActive
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {item.label}
                 </button>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 leading-none">Member Directory</h2>
-                  <p className="text-xs text-gray-500 mt-1 font-medium">Viewing registered church members</p>
-                </div>
-              </div>
-
-              {role === "admin" && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => setIsEventModalOpen(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap cursor-pointer"
-                  >
-                    <CalendarIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5 text-gray-500" aria-hidden="true" />
-                    Events
-                  </button>
-                  <button
-                    onClick={() => setIsMinistryModalOpen(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap cursor-pointer"
-                  >
-                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5 text-gray-500" aria-hidden="true" />
-                    Ministries
-                  </button>
-                  <button
-                    onClick={() => setIsNetworkModalOpen(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition whitespace-nowrap cursor-pointer"
-                  >
-                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5 text-gray-500" aria-hidden="true" />
-                    Networks
-                  </button>
-                  <button
-                    onClick={handleAddClick}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition whitespace-nowrap cursor-pointer"
-                  >
-                    <PlusIcon className="-ml-1 mr-2 flex-shrink-0 h-4.5 w-4.5" aria-hidden="true" />
-                    Add Member
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Row: Advanced Search & Dynamic Filters */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-gray-50/60 p-4 rounded-xl border border-gray-300/80 shadow-xs">
-              {/* Comprehensive Search Input */}
-              <div className="flex-1">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search by name, last name, or ID..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-6 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-xs transition-shadow"
-                  />
-                </div>
-              </div>
-
-              {/* Dynamic Filtering Controls Container */}
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Segmented Control for Baptism Filtering */}
-                <div className="flex items-center gap-1 border border-gray-300 rounded-lg p-1 bg-white shadow-inner shrink-0 overflow-x-auto">
-                  <button
-                    type="button"
-                    onClick={() => setBaptismFilter("all")}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
-                      baptismFilter === "all"
-                        ? "bg-blue-50 text-blue-600 shadow-xs border border-blue-100"
-                        : "text-gray-500 hover:text-gray-900 border border-transparent"
-                    }`}
-                  >
-                    All Members
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBaptismFilter("baptized")}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
-                      baptismFilter === "baptized"
-                        ? "bg-green-50 text-green-700 shadow-xs border border-green-100"
-                        : "text-gray-500 hover:text-gray-900 border border-transparent"
-                    }`}
-                  >
-                    Baptized
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBaptismFilter("unbaptized")}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer select-none text-center whitespace-nowrap ${
-                      baptismFilter === "unbaptized"
-                        ? "bg-amber-50 text-amber-700 shadow-xs border border-amber-100"
-                        : "text-gray-500 hover:text-gray-900 border border-transparent"
-                    }`}
-                  >
-                    Not Baptized
-                  </button>
-                </div>
-
-                {/* Filter by Network Dropdown */}
-                <select
-                  value={networkFilter}
-                  onChange={(e) => setNetworkFilter(e.target.value)}
-                  className="block w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-xs transition pointer-events-auto cursor-pointer"
-                >
-                  <option value="all">All Networks</option>
-                  {networks.map((net) => (
-                    <option key={net.id} value={net.networkName}>
-                      {net.networkName}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Filter by Ministry Dropdown */}
-                <select
-                  value={ministryFilter}
-                  onChange={(e) => setMinistryFilter(e.target.value)}
-                  className="block w-full sm:w-auto pl-3 pr-8 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-xs transition pointer-events-auto cursor-pointer"
-                >
-                  <option value="all">All Ministries</option>
-                  {ministries.map((min) => (
-                    <option key={min.id} value={min.ministryName}>
-                      {min.ministryName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="bg-white shadow-sm rounded-xl overflow-hidden border border-gray-200">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50/80 border-b border-gray-200">
-                    <tr>
-                      <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Member Name</th>
-                      <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">ID / Age</th>
-                      <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Contact & Network</th>
-                      <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                      {role === "admin" && (
-                        <th scope="col" className="relative px-6 py-3.5 w-24">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {filteredMembers.map((member) => (
-                      <tr key={member.id} className="hover:bg-blue-50/30 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            {member.pictures && member.pictures[0] ? (
-                              <div className="h-10 w-10 flex-shrink-0 rounded-full overflow-hidden border border-gray-200">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={member.pictures[0]} alt="" className="h-full w-full object-cover" />
-                              </div>
-                            ) : (
-                              <div className="h-10 w-10 flex-shrink-0 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm tracking-wide shadow-sm">
-                                {member.firstName?.[0] || ""}{member.lastName?.[0] || ""}
-                              </div>
-                            )}
-                            <div className="ml-4">
-                              <div className="text-sm font-semibold text-gray-900 border-none outline-none">
-                                {member.lastName}, {member.firstName} {member.middleName && member.middleName[0] + "."}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-0.5">{member.gender || "Unspecified"}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
-                          <div className="text-sm font-medium text-gray-900">{member.membershipId || "—"}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {(() => {
-                              const computedAge = member.birthday ? calculateAge(member.birthday) : undefined;
-                              const ageToShow = computedAge !== undefined ? computedAge : member.age;
-                              return ageToShow !== undefined ? `${ageToShow} yrs old` : "No age";
-                            })()}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
-                          <div className="text-sm text-gray-900 truncate max-w-[200px]">{member.address || "—"}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">{member.network ? `Net: ${member.network}` : "No network"}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2.5 py-1 inline-flex text-[11px] leading-4 font-bold rounded-full border shadow-sm
-                            ${member.membershipStatus === "Active" ? "bg-green-50 text-green-700 border-green-200" : 
-                              member.membershipStatus === "Inactive" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : 
-                              "bg-gray-50 text-gray-700 border-gray-200"}`}>
-                            {member.membershipStatus}
-                          </span>
-                        </td>
-                        {role === "admin" && (
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onClick={() => handleEditClick(member)} className="text-blue-500 hover:text-blue-700 mx-1 p-1.5 rounded-md hover:bg-blue-50 border-none bg-transparent curson-pointer outline-none transition" title="Edit text">
-                              <Pencil1Icon className="h-4 w-4" />
-                            </button>
-                            <button onClick={() => handleDelete(member.id!, `${member.firstName} ${member.lastName}`)} className="text-red-500 hover:text-red-700 mx-1 p-1.5 rounded-md hover:bg-red-50 border-none bg-transparent curson-pointer outline-none transition" title="Delete">
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {filteredMembers.length === 0 && (
-                      <tr>
-                        <td colSpan={role === "admin" ? 5 : 4} className="px-6 py-16 text-center text-gray-500 bg-gray-50/30">
-                          <div className="flex flex-col items-center justify-center">
-                            <div className="bg-white p-3 rounded-full shadow-sm border border-gray-100 mb-3">
-                              <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
-                            </div>
-                            <p className="text-sm font-medium text-gray-600">No members found matching &quot;{search}&quot;</p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              );
+            })}
+            <div className="pt-3.5 mt-3 border-t border-gray-100 flex items-center justify-between gap-4">
+              <span className="text-[10px] text-gray-400 font-bold uppercase truncate">{user.email}</span>
+              <button
+                onClick={logout}
+                className="text-orange-600 hover:underline text-xs font-bold select-none cursor-pointer"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* WORKSPACE VIEW CONTAINER */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-start print:p-0">
         
-        {currentView === "analysis" && (
-          <DataAnalysis members={members} onBack={() => setCurrentView("home")} />
+        {/* Dynamic Route View Switching */}
+        {activeTab === "dashboard" && (
+          <DashboardModule
+            members={members}
+            events={events}
+            ministries={ministries}
+            networks={networks}
+            role={role}
+            onNavigate={(view) => setActiveTab(view)}
+            onOpenQuickAdd={() => {
+              setEditingMember(undefined);
+              setIsFormModalOpen(true);
+            }}
+            onOpenEventModal={() => setIsEventModalOpen(true)}
+          />
         )}
 
-        <Dialog.Root open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity" />
-            <Dialog.Content className="fixed top-[50%] left-[50%] max-h-[85vh] w-[95vw] max-w-[1100px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-6 shadow-xl z-50 overflow-y-auto outline-none">
-              <Dialog.Title className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-100 pb-3">
-                {editingMember ? "Edit Member Record" : "Add New Member"}
-              </Dialog.Title>
-              <MemberForm
-                key={editingMember ? editingMember.id : "new"}
-                initialData={editingMember}
-                onSubmit={handleSubmit}
-                onCancel={() => setIsModalOpen(false)}
-                isSaving={isSaving}
-                nextMembershipId={getNextMembershipId()}
-                networks={networks}
-                ministries={ministries}
-              />
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
+        {activeTab === "members" && (
+          <MemberDirectoryModule
+            members={members}
+            networks={networks}
+            ministries={ministries}
+            role={role}
+            onAddMemberClick={() => {
+              setEditingMember(undefined);
+              setIsFormModalOpen(true);
+            }}
+            onEditMemberClick={handleEditMember}
+            onDeleteMemberClick={handleDeleteMember}
+            onOpenMinistryPanel={() => setActiveTab("ministries")}
+            onOpenNetworkPanel={() => setActiveTab("networks")}
+            onOpenEventPanel={() => setIsEventModalOpen(true)}
+          />
+        )}
 
-        <Dialog.Root open={isNetworkModalOpen} onOpenChange={setIsNetworkModalOpen}>
+        {activeTab === "baptisms" && (
+          <BaptismRecordsModule
+            members={members}
+            role={role}
+          />
+        )}
+
+        {activeTab === "attendance" && (
+          <AttendanceModule
+            members={members}
+            events={events}
+            role={role}
+          />
+        )}
+
+        {activeTab === "reports" && (
+          <ReportsModule
+            members={members}
+          />
+        )}
+
+        {activeTab === "ministries" && role === "admin" && (
+          <div className="space-y-6">
+            <div className="border-b border-gray-150 pb-3">
+              <h2 className="text-xl font-bold text-gray-900">Manage Ministries</h2>
+              <p className="text-xs text-gray-500 mt-1">Configure and assign heads for active church ministry departments</p>
+            </div>
+            <MinistriesModule
+              ministries={ministries}
+              members={members}
+              onConfirmAction={(cfg) => setConfirmConfig({ isOpen: true, ...cfg })}
+            />
+          </div>
+        )}
+
+        {activeTab === "networks" && role === "admin" && (
+          <div className="space-y-6">
+            <div className="border-b border-gray-150 pb-3">
+              <h2 className="text-xl font-bold text-gray-900">Manage Cell Networks</h2>
+              <p className="text-xs text-gray-500 mt-1">Configure and segment network leaders and clusters</p>
+            </div>
+            <NetworksModule
+              networks={networks}
+              members={members}
+              onConfirmAction={(cfg) => setConfirmConfig({ isOpen: true, ...cfg })}
+            />
+          </div>
+        )}
+
+        {activeTab === "users" && role === "admin" && (
+          <UserManagementModule
+            currentAdminEmail="scoc2911@gmail.com"
+          />
+        )}
+
+        {activeTab === "settings" && role === "admin" && (
+          <SystemSettingsModule />
+        )}
+
+        {/* DIALOG FORM MODAL: ADD / EDIT MEMBER */}
+        <Dialog.Root open={isFormModalOpen} onOpenChange={setIsFormModalOpen}>
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity" />
-            <Dialog.Content className="fixed top-[50%] left-[50%] max-h-[85vh] w-[95vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-6 shadow-xl z-50 overflow-y-auto outline-none">
-              <Dialog.Title className="text-xl font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-3">
-                Manage Church Networks
+            <Dialog.Overlay className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs z-50 transition-opacity" />
+            <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[90vh] w-[95vw] max-w-[850px] rounded-2xl bg-white p-6 shadow-2xl z-50 overflow-y-auto outline-none transition-transform animate-scale-up">
+              <Dialog.Title className="text-lg font-black text-gray-950 mb-1 border-b border-gray-100 pb-3 uppercase tracking-tight">
+                {editingMember ? "Edit Member Profile" : "Register New Member Profile"}
               </Dialog.Title>
               
-              {/* Network Data Entry Form */}
-              <form onSubmit={handleAddNetwork} className="bg-gray-50 border border-gray-100 rounded-lg p-4 mb-6 space-y-3">
-                <h3 className="text-xs font-semibold text-gray-800">
-                  {editingNetworkId ? "Edit Church Network Group" : "Add New Church Network Group"}
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-gray-600 block">Network Name *</label>
-                    <input
-                      type="text"
-                      placeholder="E.G. YOUTH, COUPLES, MEN"
-                      value={newNetworkName}
-                      onChange={(e) => setNewNetworkName(e.target.value.toUpperCase())}
-                      required
-                      className="w-full text-sm bg-white border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-gray-600 block">Network Leader *</label>
-                    <input
-                      type="text"
-                      placeholder="E.G. BRO. JOEL, SIS. CLARA"
-                      value={newNetworkLeader}
-                      onChange={(e) => setNewNetworkLeader(e.target.value.toUpperCase())}
-                      required
-                      className="w-full text-sm bg-white border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end pt-2 gap-2">
-                  {editingNetworkId && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditNetwork}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-md hover:bg-gray-50 transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={isSavingNetwork}
-                    className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSavingNetwork ? "Saving..." : (editingNetworkId ? "Update Network" : "Add Network")}
-                  </button>
-                </div>
-              </form>
-
-              {/* Existing Network Groups List */}
-              <h3 className="text-sm font-semibold text-gray-800 mb-2 font-semibold">Registered Networks ({networks.length})</h3>
-              {networks.length > 0 ? (
-                <div className="max-h-[30vh] overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-150">
-                  {networks.map((net) => (
-                    <div key={net.id} className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors">
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{net.networkName}</p>
-                        <p className="text-xs text-gray-500">Leader: {net.networkLeader}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleEditNetwork(net)}
-                          className="text-blue-500 hover:text-blue-700 p-1 bg-transparent border-none outline-none transition cursor-pointer"
-                          title="Edit Network"
-                        >
-                          <Pencil1Icon className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteNetwork(net.id!, net.networkName)}
-                          className="text-red-500 hover:text-red-700 p-1 bg-transparent border-none outline-none transition cursor-pointer"
-                          title="Delete Network"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
-                  No church networks have been registered yet. Add one above to simplify member association.
-                </div>
-              )}
-
-              <div className="flex justify-end pt-5 mt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsNetworkModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none cursor-pointer"
-                >
-                  Done
-                </button>
+              <div className="mt-4">
+                <MemberForm
+                  initialData={editingMember}
+                  onSubmit={handleMemberSubmit}
+                  onCancel={() => setIsFormModalOpen(false)}
+                  isSaving={isSaving}
+                  networks={networks}
+                  ministries={ministries}
+                />
               </div>
             </Dialog.Content>
           </Dialog.Portal>
         </Dialog.Root>
 
-        <Dialog.Root open={isMinistryModalOpen} onOpenChange={setIsMinistryModalOpen}>
-          <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity" />
-            <Dialog.Content className="fixed top-[50%] left-[50%] max-h-[85vh] w-[95vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-6 shadow-xl z-50 overflow-y-auto outline-none">
-              <Dialog.Title className="text-xl font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-3">
-                Manage Church Ministries
-              </Dialog.Title>
-              
-              {/* Ministry Data Entry Form */}
-              <form onSubmit={handleAddMinistry} className="bg-gray-50 border border-gray-100 rounded-lg p-4 mb-6 space-y-3">
-                <h3 className="text-xs font-semibold text-gray-800">
-                  {editingMinistryId ? "Edit Church Ministry" : "Add New Church Ministry"}
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                     <label className="text-[11px] font-semibold text-gray-600 block">Ministry Name *</label>
-                     <input
-                       type="text"
-                       placeholder="E.G. WORSHIP, USHERS, KIDS"
-                       value={newMinistryName}
-                       onChange={(e) => setNewMinistryName(e.target.value.toUpperCase())}
-                       required
-                       className="w-full text-sm bg-white border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                     />
-                  </div>
-                  <div className="space-y-1">
-                     <label className="text-[11px] font-semibold text-gray-600 block">Ministry Head *</label>
-                     <input
-                       type="text"
-                       placeholder="E.G. BRO. JOHN, SIS. MARY"
-                       value={newMinistryHead}
-                       onChange={(e) => setNewMinistryHead(e.target.value.toUpperCase())}
-                       required
-                       className="w-full text-sm bg-white border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                     />
-                  </div>
-                </div>
-                <div className="flex justify-end pt-2 gap-2">
-                  {editingMinistryId && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditMinistry}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-md hover:bg-gray-50 transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  <button
-                     type="submit"
-                     disabled={isSavingMinistry}
-                     className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer"
-                  >
-                     {isSavingMinistry ? "Saving..." : (editingMinistryId ? "Update Ministry" : "Add Ministry")}
-                  </button>
-                </div>
-              </form>
-
-              {/* Existing Ministries List */}
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Registered Ministries ({ministries.length})</h3>
-              {ministries.length > 0 ? (
-                <div className="max-h-[30vh] overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-150">
-                  {ministries.map((min) => (
-                    <div key={min.id} className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors">
-                      <div>
-                         <p className="text-sm font-bold text-gray-900">{min.ministryName}</p>
-                         <p className="text-xs text-gray-500">Head: {min.ministryHead}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                         <button
-                           type="button"
-                           onClick={() => handleEditMinistry(min)}
-                           className="text-blue-500 hover:text-blue-700 p-1 bg-transparent border-none outline-none transition cursor-pointer"
-                           title="Edit Ministry"
-                         >
-                           <Pencil1Icon className="h-4 w-4" />
-                         </button>
-                         <button
-                           type="button"
-                           onClick={() => handleDeleteMinistry(min.id!, min.ministryName)}
-                           className="text-red-500 hover:text-red-700 p-1 bg-transparent border-none outline-none transition cursor-pointer"
-                           title="Delete Ministry"
-                         >
-                           <TrashIcon className="h-4 w-4" />
-                         </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
-                  No church ministries have been registered yet. Add one above to simplify member association.
-                </div>
-              )}
-
-              <div className="flex justify-end pt-5 mt-4 border-t border-gray-100">
-                 <button
-                   type="button"
-                   onClick={() => setIsMinistryModalOpen(false)}
-                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none cursor-pointer"
-                 >
-                   Done
-                 </button>
-              </div>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
-
+        {/* EVENT MODAL: SCHEDULE CHURCH LOGS */}
         <Dialog.Root open={isEventModalOpen} onOpenChange={setIsEventModalOpen}>
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity" />
-            <Dialog.Content className="fixed top-[50%] left-[50%] max-h-[85vh] w-[95vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-6 shadow-xl z-50 overflow-y-auto outline-none">
-              <Dialog.Title className="text-xl font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-3">
-                Manage Church Events
+            <Dialog.Overlay className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs z-50 transition-opacity animate-fade-in" />
+            <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[85vh] w-[95vw] max-w-[600px] rounded-2xl bg-white p-6 shadow-2xl z-50 overflow-y-auto outline-none transition-transform animate-scale-up">
+              <Dialog.Title className="text-lg font-black text-gray-950 mb-1 border-b border-gray-100 pb-3 uppercase tracking-tight flex items-center gap-1.5">
+                <CalendarDays className="w-5 h-5 text-blue-600" />
+                Schedules & Events Logs
               </Dialog.Title>
               
-              {/* Event Data Entry Form */}
-              <form onSubmit={handleAddEvent} className="bg-gray-50 border border-gray-100 rounded-lg p-4 mb-6 space-y-3">
-                <h3 className="text-xs font-semibold text-gray-800">
-                  {editingEventId ? "Edit Event" : "Schedule New Event"}
+              {/* Event Form */}
+              <form onSubmit={handleAddEvent} className="bg-gray-50 border border-gray-200 rounded-xl p-4.5 mt-4 mb-6 space-y-3.5 shadow-sm">
+                <h3 className="text-xs font-bold text-gray-800 uppercase tracking-widest">
+                  {editingEventId ? "Edit Scheduled Event" : "Create Calendar Log"}
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div className="space-y-1">
-                     <label className="text-[11px] font-semibold text-gray-600 block">Event Name *</label>
+                     <label className="text-xs font-bold text-gray-600 block">Event Name *</label>
                      <input
                        type="text"
-                       placeholder="E.G. SUNDAY SERVICE"
+                       placeholder="E.G. WORSHIP SERVICE"
                        value={newEventName}
-                       onChange={(e) => setNewEventName(e.target.value.toUpperCase())}
+                       onChange={(e) => setNewEventName(e.target.value)}
                        required
-                       className="w-full text-sm bg-white border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                       className="w-full text-sm bg-white border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 uppercase font-semibold"
                      />
                   </div>
                   <div className="space-y-1">
-                     <label className="text-[11px] font-semibold text-gray-600 block">Date & Time *</label>
+                     <label className="text-xs font-bold text-gray-600 block">Scheduled Date & Time *</label>
                      <input
                        type="datetime-local"
                        value={newEventDate}
                        onChange={(e) => setNewEventDate(e.target.value)}
                        required
-                       className="w-full text-sm bg-white border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                       className="w-full text-sm bg-white border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
                      />
                   </div>
                 </div>
@@ -1043,7 +623,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={handleCancelEditEvent}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-md hover:bg-gray-50 transition cursor-pointer"
+                      className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 transition cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1051,65 +631,70 @@ export default function Home() {
                   <button
                      type="submit"
                      disabled={isSavingEvent}
-                     className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer"
+                     className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
                   >
-                     {isSavingEvent ? "Saving..." : (editingEventId ? "Update Event" : "Schedule Event")}
+                     {isSavingEvent ? "Saving..." : (editingEventId ? "Update Schedule" : "Add Schedule")}
                   </button>
                 </div>
               </form>
 
-              {/* Existing Events List */}
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Upcoming Events ({events.length})</h3>
+              {/* Event List */}
+              <h3 className="text-xs font-bold text-gray-800 uppercase tracking-widest mb-3">Recorded Event Lists ({events.length})</h3>
               {events.length > 0 ? (
-                <div className="max-h-[30vh] overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-150">
+                <div className="max-h-[30vh] overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 bg-white">
                   {events.map((evt) => {
                     const countdown = calculateCountdown(evt.eventDate);
                     return (
-                    <div key={evt.id} className={`flex items-center justify-between p-3 hover:bg-gray-50 transition-colors ${countdown.passed ? 'opacity-50' : ''}`}>
-                      <div className="flex-1">
-                         <p className="text-sm font-bold text-gray-900">{evt.eventName}</p>
-                         <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                           <CalendarIcon className="w-3 h-3" />
-                           {new Date(evt.eventDate).toLocaleString()}
-                         </p>
+                      <div key={evt.id} className={`flex items-center justify-between p-3.5 hover:bg-gray-50/50 transition-colors ${countdown.passed ? 'opacity-60' : ''}`}>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-bold text-gray-900 leading-tight">{evt.eventName}</p>
+                          <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1 mt-1 uppercase tracking-wide">
+                            <ClockIcon className="w-3.5 h-3.5 text-gray-400" />
+                            {new Date(evt.eventDate).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                        <div className="text-right px-4.5 shrink-0">
+                          <div className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
+                            countdown.passed 
+                              ? 'bg-gray-50 text-gray-400 border-gray-200' 
+                              : 'bg-orange-50 text-orange-700 border-orange-100'
+                          }`}>
+                            {countdown.text}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleEditEvent(evt)}
+                            className="text-blue-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                            title="Edit Event"
+                          >
+                            <Pencil1Icon className="h-4.5 w-4.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEvent(evt.id!, evt.eventName)}
+                            className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                            title="Delete Event"
+                          >
+                            <TrashIcon className="h-4.5 w-4.5" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-right px-4">
-                         <div className={`text-xs font-bold px-2 py-1 rounded-full inline-block ${countdown.passed ? 'bg-gray-100 text-gray-500' : 'bg-orange-100 text-orange-700'}`}>
-                           {countdown.text}
-                         </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                         <button
-                           type="button"
-                           onClick={() => handleEditEvent(evt)}
-                           className="text-blue-500 hover:text-blue-700 p-1 bg-transparent border-none outline-none transition cursor-pointer"
-                           title="Edit Event"
-                         >
-                           <Pencil1Icon className="h-4 w-4" />
-                         </button>
-                         <button
-                           type="button"
-                           onClick={() => handleDeleteEvent(evt.id!, evt.eventName)}
-                           className="text-red-500 hover:text-red-700 p-1 bg-transparent border-none outline-none transition cursor-pointer"
-                           title="Delete Event"
-                         >
-                           <TrashIcon className="h-4 w-4" />
-                         </button>
-                      </div>
-                    </div>
-                  )})}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
-                  No church events have been scheduled yet. Schedule one above.
+                <div className="p-10 text-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl bg-gray-50/20">
+                  No scheduled calendar events are currently recorded.
                 </div>
               )}
 
-              <div className="flex justify-end pt-5 mt-4 border-t border-gray-100">
+              <div className="flex justify-end pt-4 mt-5 border-t border-gray-100">
                  <button
                    type="button"
                    onClick={() => setIsEventModalOpen(false)}
-                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none cursor-pointer"
+                   className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
                  >
                    Done
                  </button>
@@ -1118,6 +703,7 @@ export default function Home() {
           </Dialog.Portal>
         </Dialog.Root>
 
+        {/* CONFIRM ACTION MODAL */}
         <ConfirmModal
           isOpen={confirmConfig.isOpen}
           onOpenChange={(open) => setConfirmConfig({ ...confirmConfig, isOpen: open })}
