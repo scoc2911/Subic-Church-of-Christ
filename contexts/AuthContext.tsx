@@ -15,6 +15,8 @@ interface AuthContextType {
   loginError: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  isSandbox: boolean;
+  loginSandbox: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -25,6 +27,8 @@ const AuthContext = createContext<AuthContextType>({
   loginError: null,
   login: async () => {},
   logout: async () => {},
+  isSandbox: false,
+  loginSandbox: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -35,10 +39,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isSandbox, setIsSandbox] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+      setUser({
+        uid: "sandbox_admin",
+        email: "scoc2911@gmail.com",
+        displayName: "SCOC Sandbox Admin",
+        emailVerified: true,
+        providerData: []
+      } as any);
+      setRole("admin");
+      setIsSandbox(true);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      setIsSandbox(false);
       if (currentUser) {
         if (currentUser.email === "scoc2911@gmail.com") {
           setRole("admin");
@@ -127,13 +147,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginSandbox = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("scoc_sandbox", "true");
+    }
+    setUser({
+      uid: "sandbox_admin",
+      email: "scoc2911@gmail.com",
+      displayName: "SCOC Sandbox Admin",
+      emailVerified: true,
+      providerData: []
+    } as any);
+    setRole("admin");
+    setIsSandbox(true);
+    setLoginError(null);
+    setLoading(false);
+  };
+
   const logout = async () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("scoc_sandbox");
+    }
+    setIsSandbox(false);
     setLoginError(null);
     await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, isLoggingIn, loginError, login, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, isLoggingIn, loginError, login, logout, isSandbox, loginSandbox }}>
       {children}
     </AuthContext.Provider>
   );

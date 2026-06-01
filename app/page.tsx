@@ -97,7 +97,7 @@ const calculateCountdown = (dateString: string): { text: string; passed: boolean
 export const dynamic = "force-dynamic";
 
 export default function Home() {
-  const { user, role, loading, isLoggingIn, loginError, login, logout } = useAuth();
+  const { user, role, loading, isLoggingIn, loginError, login, logout, isSandbox, loginSandbox } = useAuth();
   
   // Real-time Firestore Subscribed States
   const [members, setMembers] = useState<Member[]>([]);
@@ -216,6 +216,18 @@ export default function Home() {
                 Connecting Google Account...
               </span>
             ) : "Sign in with Google Account"}
+          </button>
+
+          <div className="relative flex items-center justify-center my-4.5 w-full">
+            <div className="absolute w-full border-t border-gray-150"></div>
+            <span className="relative bg-white px-3.5 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-none">or</span>
+          </div>
+
+          <button
+            onClick={loginSandbox}
+            className="w-full h-12 bg-gray-50 hover:bg-gray-100 text-blue-700 border border-gray-200 hover:border-blue-200 rounded-lg font-bold transition flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer text-xs"
+          >
+            Launch Offline Sandbox Mode
           </button>
 
           {loginError && (
@@ -533,8 +545,12 @@ export default function Home() {
           <div className="h-16 px-5 border-b border-gray-100 flex items-center gap-2.5">
             <Logo size={36} className="text-blue-600" />
             <div>
-              <span className="text-sm font-black text-gray-950 uppercase tracking-tight block">SCOC Admin</span>
-              <span className="text-[9px] text-gray-400 font-extrabold uppercase tracking-widest block leading-none">Database Console</span>
+              <span className="text-sm font-black text-gray-950 uppercase tracking-tight block">
+                {isSandbox ? "SCOC Sandbox" : "SCOC Admin"}
+              </span>
+              <span className={`text-[9px] font-extrabold uppercase tracking-widest block leading-none ${isSandbox ? "text-orange-600 animate-pulse font-black" : "text-gray-400"}`}>
+                {isSandbox ? "Demo DB Sandbox" : "Database Console"}
+              </span>
             </div>
           </div>
 

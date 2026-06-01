@@ -58,7 +58,194 @@ const sanitizeData = <T extends Record<string, any>>(data: T): Partial<T> => {
   return sanitized;
 };
 
+// ----------------------------------------------------
+// SANDBOX MODE DATABASE INTERFACE SUPPORT
+// ----------------------------------------------------
+const isSandboxActive = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem("scoc_sandbox") === "true";
+};
+
+const INITIAL_MOCK_MEMBERS: Member[] = [
+  {
+    id: "mock_1",
+    lastName: "Santos",
+    firstName: "Maria Teresa",
+    middleName: "Cruz",
+    gender: "Female",
+    age: 34,
+    birthday: "1992-04-12",
+    address: "12 Rizal St, Subic, Zambales",
+    contactNumber: "0917-123-4567",
+    email: "maria.santos@gmail.com",
+    voter: true,
+    isBaptized: true,
+    baptismDate: "2015-08-16",
+    baptismExecutedBy: "Bro. Jonathan Almeda",
+    baptismWitness1: "Juan Dela Cruz",
+    baptismWitness2: "Emma Flores",
+    membershipStatus: "Active",
+    network: "Subic North Cluster",
+    networkLeader: "Bro. Danilo Perez",
+    ministry: "Music Ministry",
+    ministryHead: "Sis. Teresa Cruz",
+    createdAt: "2026-01-10T08:30:00Z",
+    updatedAt: "2026-01-10T08:30:00Z"
+  },
+  {
+    id: "mock_2",
+    lastName: "Dela Cruz",
+    firstName: "John Michael",
+    middleName: "Bautista",
+    gender: "Male",
+    age: 26,
+    birthday: "2000-01-20",
+    address: "Block 5 Lot 22, Barangay Mangan-Vaca, Subic",
+    contactNumber: "0920-987-6543",
+    email: "john.dc@gmail.com",
+    voter: true,
+    isBaptized: true,
+    baptismDate: "2018-12-02",
+    baptismExecutedBy: "Bro. Ricardo David",
+    baptismWitness1: "Carlos Sanchez",
+    baptismWitness2: "Elena Reyes",
+    membershipStatus: "Regular Attender",
+    network: "Youth Central",
+    networkLeader: "Bro. John Michael",
+    ministry: "Multimedia & Audio",
+    ministryHead: "Bro. Michael Reyes",
+    createdAt: "2026-02-15T10:15:00Z",
+    updatedAt: "2026-02-15T10:15:00Z"
+  },
+  {
+    id: "mock_3",
+    lastName: "Perez",
+    firstName: "Danilo",
+    middleName: "Gomez",
+    gender: "Male",
+    age: 48,
+    birthday: "1978-11-05",
+    address: "45 National Highway, Subic, Zambales",
+    contactNumber: "0908-222-1111",
+    email: "daniloperez@yahoo.com",
+    voter: true,
+    isBaptized: true,
+    baptismDate: "2005-05-18",
+    baptismExecutedBy: "Evangelist Mark Ramos",
+    baptismWitness1: "Arthur Gomez",
+    baptismWitness2: "Aida Perez",
+    membershipStatus: "Ministry Leader",
+    network: "Subic North Cluster",
+    networkLeader: "Bro. Danilo Perez",
+    ministry: "Teaching Ministry",
+    ministryHead: "Bro. Danilo Perez",
+    createdAt: "2026-01-01T09:00:00Z",
+    updatedAt: "2026-01-01T09:00:00Z"
+  }
+];
+
+const INITIAL_MOCK_NETWORKS: Network[] = [
+  { id: "net_1", networkName: "Subic North Cluster", networkLeader: "Bro. Danilo Perez", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
+  { id: "net_2", networkName: "Subic South Cluster", networkLeader: "Bro. Ricardo David", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
+  { id: "net_3", networkName: "Youth Central", networkLeader: "Bro. John Michael", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }
+];
+
+const INITIAL_MOCK_MINISTRIES: Ministry[] = [
+  { id: "min_1", ministryName: "Music Ministry", ministryHead: "Sis. Teresa Cruz", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
+  { id: "min_2", ministryName: "Teaching Ministry", ministryHead: "Bro. Danilo Perez", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
+  { id: "min_3", ministryName: "Multimedia & Audio", ministryHead: "Bro. Michael Reyes", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }
+];
+
+const INITIAL_MOCK_EVENTS: ChurchEvent[] = [
+  { id: "evt_1", eventName: "SUNDAY DIVINE WORSHIP SERVICE", eventDate: `${new Date().getFullYear()}-06-07T09:00`, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
+  { id: "evt_2", eventName: "MIDWEEK PRAYER AND DISCIPLESHIP", eventDate: `${new Date().getFullYear()}-06-10T19:00`, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
+  { id: "evt_3", eventName: "YOUTH FELLOWSHIP", eventDate: `${new Date().getFullYear()}-06-13T16:00`, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }
+];
+
+const INITIAL_MOCK_ATTENDANCE: AttendanceRecord[] = [
+  { id: "evt_1_mock_1", eventId: "evt_1", eventName: "SUNDAY DIVINE WORSHIP SERVICE", eventDate: `${new Date().getFullYear()}-06-07T09:00`, memberId: "mock_1", memberName: "Maria Teresa Santos", status: "Present", updatedAt: "2026-06-01T15:00:00Z" },
+  { id: "evt_1_mock_2", eventId: "evt_1", eventName: "SUNDAY DIVINE WORSHIP SERVICE", eventDate: `${new Date().getFullYear()}-06-07T09:00`, memberId: "mock_2", memberName: "John Michael Dela Cruz", status: "Absent", updatedAt: "2026-06-01T15:00:00Z" },
+  { id: "evt_1_mock_3", eventId: "evt_1", eventName: "SUNDAY DIVINE WORSHIP SERVICE", eventDate: `${new Date().getFullYear()}-06-07T09:00`, memberId: "mock_3", memberName: "Danilo Perez", status: "Present", updatedAt: "2026-06-01T15:00:00Z" }
+];
+
+const INITIAL_MOCK_AUDIT_LOGS: AuditLog[] = [
+  { id: "log_1", userEmail: "scoc2911@gmail.com", userName: "SCOC Sandbox Admin", action: "Initialized Demo Sandbox Module for database testing.", timestamp: new Date().toISOString() }
+];
+
+const INITIAL_MOCK_USER_ROLES: SystemUserRole[] = [
+  { id: "sandbox_admin", email: "scoc2911@gmail.com", displayName: "SCOC Sandbox Admin", role: "admin", updatedAt: new Date().toISOString() }
+];
+
+const getSandboxData = <T>(key: string, initial: T): T => {
+  if (typeof window === "undefined") return initial;
+  const raw = localStorage.getItem(key);
+  if (!raw) {
+    localStorage.setItem(key, JSON.stringify(initial));
+    return initial;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return initial;
+  }
+};
+
+const saveSandboxData = <T>(key: string, data: T) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(key, JSON.stringify(data));
+};
+
+// Callback Registrations
+let membersCallbacks: ((data: Member[]) => void)[] = [];
+let networksCallbacks: ((data: Network[]) => void)[] = [];
+let ministriesCallbacks: ((data: Ministry[]) => void)[] = [];
+let eventsCallbacks: ((data: ChurchEvent[]) => void)[] = [];
+let attendanceCallbacks: { [eventId: string]: ((data: AttendanceRecord[]) => void)[] } = {};
+let auditLogsCallbacks: ((data: AuditLog[]) => void)[] = [];
+let userRolesCallbacks: ((data: SystemUserRole[]) => void)[] = [];
+
+const notifyMembers = () => {
+  const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+  membersCallbacks.forEach(cb => cb(data));
+};
+const notifyNetworks = () => {
+  const data = getSandboxData("scoc_networks", INITIAL_MOCK_NETWORKS);
+  networksCallbacks.forEach(cb => cb(data));
+};
+const notifyMinistries = () => {
+  const data = getSandboxData("scoc_ministries", INITIAL_MOCK_MINISTRIES);
+  ministriesCallbacks.forEach(cb => cb(data));
+};
+const notifyEvents = () => {
+  const data = getSandboxData("scoc_events", INITIAL_MOCK_EVENTS);
+  const sorted = [...data].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+  eventsCallbacks.forEach(cb => cb(sorted));
+};
+const notifyAttendance = (eventId: string) => {
+  const data = getSandboxData("scoc_attendance", INITIAL_MOCK_ATTENDANCE);
+  const filtered = data.filter(r => r.eventId === eventId);
+  const callbacks = attendanceCallbacks[eventId] || [];
+  callbacks.forEach(cb => cb(filtered));
+};
+const notifyAuditLogs = () => {
+  const data = getSandboxData("scoc_auditLogs", INITIAL_MOCK_AUDIT_LOGS);
+  const sorted = [...data].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  auditLogsCallbacks.forEach(cb => cb(sorted));
+};
+const notifyUserRoles = () => {
+  const data = getSandboxData("scoc_userRoles", INITIAL_MOCK_USER_ROLES);
+  userRolesCallbacks.forEach(cb => cb(data));
+};
+
 export const subscribeToMembers = (callback: (members: Member[]) => void) => {
+  if (isSandboxActive()) {
+    membersCallbacks.push(callback);
+    callback(getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS));
+    return () => {
+      membersCallbacks = membersCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
   const q = query(collection(db, "members"));
   return onSnapshot(
     q,
@@ -76,6 +263,28 @@ export const subscribeToMembers = (callback: (members: Member[]) => void) => {
 };
 
 export const createMember = async (memberData: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+    const newMember: Member = {
+      id: `mock_${Date.now()}`,
+      ...memberData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = [...data, newMember];
+    saveSandboxData("scoc_members", updated);
+    
+    // Auto add log
+    await createAuditLog({
+      userEmail: "scoc2911@gmail.com",
+      userName: "SCOC Sandbox Admin",
+      action: `Created Member Profile for ${memberData.firstName} ${memberData.lastName}`,
+    });
+
+    notifyMembers();
+    return;
+  }
+
   try {
     const sanitized = sanitizeData(memberData);
     const newDocRef = doc(collection(db, "members"));
@@ -90,6 +299,31 @@ export const createMember = async (memberData: Omit<Member, "id" | "createdAt" |
 };
 
 export const updateMember = async (id: string, memberData: Partial<Member>) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+    const updated = data.map((m) => {
+      if (m.id === id) {
+        return {
+          ...m,
+          ...memberData,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return m;
+    });
+    saveSandboxData("scoc_members", updated);
+
+    // Auto add log
+    await createAuditLog({
+      userEmail: "scoc2911@gmail.com",
+      userName: "SCOC Sandbox Admin",
+      action: `Updated Member Profile ID: ${id}`,
+    });
+
+    notifyMembers();
+    return;
+  }
+
   try {
     const memberDoc = doc(db, "members", id);
     // Exclude id and createdAt from update
@@ -109,6 +343,22 @@ export const updateMember = async (id: string, memberData: Partial<Member>) => {
 };
 
 export const deleteMember = async (id: string) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+    const updated = data.filter((m) => m.id !== id);
+    saveSandboxData("scoc_members", updated);
+
+    // Auto add log
+    await createAuditLog({
+      userEmail: "scoc2911@gmail.com",
+      userName: "SCOC Sandbox Admin",
+      action: `Permanently deleted Member Record ID: ${id}`,
+    });
+
+    notifyMembers();
+    return;
+  }
+
   try {
     await deleteDoc(doc(db, "members", id));
   } catch (error) {
@@ -125,6 +375,14 @@ export interface Network {
 }
 
 export const subscribeToNetworks = (callback: (networks: Network[]) => void) => {
+  if (isSandboxActive()) {
+    networksCallbacks.push(callback);
+    callback(getSandboxData("scoc_networks", INITIAL_MOCK_NETWORKS));
+    return () => {
+      networksCallbacks = networksCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
   const q = query(collection(db, "networks"));
   return onSnapshot(
     q,
@@ -142,6 +400,21 @@ export const subscribeToNetworks = (callback: (networks: Network[]) => void) => 
 };
 
 export const createNetwork = async (networkData: Omit<Network, "id" | "createdAt" | "updatedAt">) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_networks", INITIAL_MOCK_NETWORKS);
+    const newNetwork: Network = {
+      id: `net_${Date.now()}`,
+      ...networkData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = [...data, newNetwork];
+    saveSandboxData("scoc_networks", updated);
+
+    notifyNetworks();
+    return;
+  }
+
   try {
     const sanitized = sanitizeData(networkData);
     const newDocRef = doc(collection(db, "networks"));
@@ -156,6 +429,24 @@ export const createNetwork = async (networkData: Omit<Network, "id" | "createdAt
 };
 
 export const updateNetwork = async (id: string, networkData: Partial<Network>) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_networks", INITIAL_MOCK_NETWORKS);
+    const updated = data.map((n) => {
+      if (n.id === id) {
+        return {
+          ...n,
+          ...networkData,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return n;
+    });
+    saveSandboxData("scoc_networks", updated);
+
+    notifyNetworks();
+    return;
+  }
+
   try {
     const networkDoc = doc(db, "networks", id);
     const { id: _, createdAt, ...updateData } = networkData;
@@ -174,6 +465,15 @@ export const updateNetwork = async (id: string, networkData: Partial<Network>) =
 };
 
 export const deleteNetwork = async (id: string) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_networks", INITIAL_MOCK_NETWORKS);
+    const updated = data.filter((n) => n.id !== id);
+    saveSandboxData("scoc_networks", updated);
+
+    notifyNetworks();
+    return;
+  }
+
   try {
     await deleteDoc(doc(db, "networks", id));
   } catch (error) {
@@ -190,6 +490,14 @@ export interface Ministry {
 }
 
 export const subscribeToMinistries = (callback: (ministries: Ministry[]) => void) => {
+  if (isSandboxActive()) {
+    ministriesCallbacks.push(callback);
+    callback(getSandboxData("scoc_ministries", INITIAL_MOCK_MINISTRIES));
+    return () => {
+      ministriesCallbacks = ministriesCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
   const q = query(collection(db, "ministries"));
   return onSnapshot(
     q,
@@ -207,6 +515,21 @@ export const subscribeToMinistries = (callback: (ministries: Ministry[]) => void
 };
 
 export const createMinistry = async (ministryData: Omit<Ministry, "id" | "createdAt" | "updatedAt">) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_ministries", INITIAL_MOCK_MINISTRIES);
+    const newMinistry: Ministry = {
+      id: `min_${Date.now()}`,
+      ...ministryData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = [...data, newMinistry];
+    saveSandboxData("scoc_ministries", updated);
+
+    notifyMinistries();
+    return;
+  }
+
   try {
     const sanitized = sanitizeData(ministryData);
     const newDocRef = doc(collection(db, "ministries"));
@@ -221,6 +544,24 @@ export const createMinistry = async (ministryData: Omit<Ministry, "id" | "create
 };
 
 export const updateMinistry = async (id: string, ministryData: Partial<Ministry>) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_ministries", INITIAL_MOCK_MINISTRIES);
+    const updated = data.map((m) => {
+      if (m.id === id) {
+        return {
+          ...m,
+          ...ministryData,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return m;
+    });
+    saveSandboxData("scoc_ministries", updated);
+
+    notifyMinistries();
+    return;
+  }
+
   try {
     const ministryDoc = doc(db, "ministries", id);
     const { id: _, createdAt, ...updateData } = ministryData;
@@ -239,6 +580,15 @@ export const updateMinistry = async (id: string, ministryData: Partial<Ministry>
 };
 
 export const deleteMinistry = async (id: string) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_ministries", INITIAL_MOCK_MINISTRIES);
+    const updated = data.filter((m) => m.id !== id);
+    saveSandboxData("scoc_ministries", updated);
+
+    notifyMinistries();
+    return;
+  }
+
   try {
     await deleteDoc(doc(db, "ministries", id));
   } catch (error) {
@@ -255,6 +605,16 @@ export interface ChurchEvent {
 }
 
 export const subscribeToEvents = (callback: (events: ChurchEvent[]) => void) => {
+  if (isSandboxActive()) {
+    eventsCallbacks.push(callback);
+    const rawData = getSandboxData("scoc_events", INITIAL_MOCK_EVENTS);
+    const sorted = [...rawData].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+    callback(sorted);
+    return () => {
+      eventsCallbacks = eventsCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
   const q = query(collection(db, "events"));
   return onSnapshot(
     q,
@@ -274,6 +634,21 @@ export const subscribeToEvents = (callback: (events: ChurchEvent[]) => void) => 
 };
 
 export const createEvent = async (eventData: Omit<ChurchEvent, "id" | "createdAt" | "updatedAt">) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_events", INITIAL_MOCK_EVENTS);
+    const newEvent: ChurchEvent = {
+      id: `evt_${Date.now()}`,
+      ...eventData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const updated = [...data, newEvent];
+    saveSandboxData("scoc_events", updated);
+
+    notifyEvents();
+    return;
+  }
+
   try {
     const sanitized = sanitizeData(eventData);
     const newDocRef = doc(collection(db, "events"));
@@ -288,6 +663,24 @@ export const createEvent = async (eventData: Omit<ChurchEvent, "id" | "createdAt
 };
 
 export const updateEvent = async (id: string, eventData: Partial<ChurchEvent>) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_events", INITIAL_MOCK_EVENTS);
+    const updated = data.map((e) => {
+      if (e.id === id) {
+        return {
+          ...e,
+          ...eventData,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return e;
+    });
+    saveSandboxData("scoc_events", updated);
+
+    notifyEvents();
+    return;
+  }
+
   try {
     const eventDoc = doc(db, "events", id);
     const { id: _, createdAt, ...updateData } = eventData;
@@ -306,6 +699,15 @@ export const updateEvent = async (id: string, eventData: Partial<ChurchEvent>) =
 };
 
 export const deleteEvent = async (id: string) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_events", INITIAL_MOCK_EVENTS);
+    const updated = data.filter((e) => e.id !== id);
+    saveSandboxData("scoc_events", updated);
+
+    notifyEvents();
+    return;
+  }
+
   try {
     await deleteDoc(doc(db, "events", id));
   } catch (error) {
@@ -328,6 +730,20 @@ export interface AttendanceRecord {
 }
 
 export const subscribeToAttendance = (eventId: string, callback: (records: AttendanceRecord[]) => void) => {
+  if (isSandboxActive()) {
+    if (!attendanceCallbacks[eventId]) {
+      attendanceCallbacks[eventId] = [];
+    }
+    attendanceCallbacks[eventId].push(callback);
+    
+    const data = getSandboxData("scoc_attendance", INITIAL_MOCK_ATTENDANCE);
+    const filtered = data.filter((r) => r.eventId === eventId);
+    callback(filtered);
+    return () => {
+      attendanceCallbacks[eventId] = (attendanceCallbacks[eventId] || []).filter((cb) => cb !== callback);
+    };
+  }
+
   const q = query(collection(db, "attendance"));
   return onSnapshot(
     q,
@@ -348,6 +764,36 @@ export const subscribeToAttendance = (eventId: string, callback: (records: Atten
 };
 
 export const saveAttendanceBatch = async (records: Omit<AttendanceRecord, "id" | "updatedAt">[]) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_attendance", INITIAL_MOCK_ATTENDANCE);
+    const nextAttendance = [...data];
+
+    records.forEach((rec) => {
+      const docKey = `${rec.eventId}_${rec.memberId}`;
+      const existingIdx = nextAttendance.findIndex((r) => r.eventId === rec.eventId && r.memberId === rec.memberId);
+      
+      const updatedRecord = {
+        id: docKey,
+        ...rec,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (existingIdx !== -1) {
+        nextAttendance[existingIdx] = updatedRecord;
+      } else {
+        nextAttendance.push(updatedRecord);
+      }
+    });
+
+    saveSandboxData("scoc_attendance", nextAttendance);
+
+    // Notify any screen listening to this event's attendance
+    if (records.length > 0) {
+      notifyAttendance(records[0].eventId);
+    }
+    return;
+  }
+
   try {
     const promises = records.map(async (rec) => {
       // Use unique key: eventId_memberId to avoid duplicate rows in attendance tracking
@@ -380,6 +826,20 @@ export interface AuditLog {
 }
 
 export const createAuditLog = async (logData: Omit<AuditLog, "id" | "timestamp">) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_auditLogs", INITIAL_MOCK_AUDIT_LOGS);
+    const newLog = {
+      id: `log_${Date.now()}`,
+      ...logData,
+      timestamp: new Date().toISOString(),
+    };
+    const updated = [newLog, ...data];
+    saveSandboxData("scoc_auditLogs", updated);
+    
+    notifyAuditLogs();
+    return;
+  }
+
   try {
     const newDocRef = doc(collection(db, "auditLogs"));
     await setDoc(newDocRef, {
@@ -392,6 +852,15 @@ export const createAuditLog = async (logData: Omit<AuditLog, "id" | "timestamp">
 };
 
 export const subscribeToAuditLogs = (callback: (logs: AuditLog[]) => void) => {
+  if (isSandboxActive()) {
+    auditLogsCallbacks.push(callback);
+    const data = getSandboxData("scoc_auditLogs", INITIAL_MOCK_AUDIT_LOGS);
+    callback(data);
+    return () => {
+      auditLogsCallbacks = auditLogsCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
   const q = query(collection(db, "auditLogs"));
   return onSnapshot(
     q,
@@ -435,6 +904,14 @@ export interface SystemUserRole {
 }
 
 export const subscribeToUserRoles = (callback: (roles: SystemUserRole[]) => void) => {
+  if (isSandboxActive()) {
+    userRolesCallbacks.push(callback);
+    callback(getSandboxData("scoc_userRoles", INITIAL_MOCK_USER_ROLES));
+    return () => {
+      userRolesCallbacks = userRolesCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
   const q = query(collection(db, "userRoles"));
   return onSnapshot(
     q,
@@ -452,6 +929,32 @@ export const subscribeToUserRoles = (callback: (roles: SystemUserRole[]) => void
 };
 
 export const updateUserRole = async (email: string, role: "admin" | "viewer") => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_userRoles", INITIAL_MOCK_USER_ROLES);
+    const safeKey = email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    
+    const existingIdx = data.findIndex((u) => u.email === email.toLowerCase());
+    
+    const updatedRole: SystemUserRole = {
+      id: safeKey,
+      email: email.toLowerCase(),
+      displayName: email.split("@")[0].toUpperCase(),
+      role,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const nextRoles = [...data];
+    if (existingIdx !== -1) {
+      nextRoles[existingIdx] = updatedRole;
+    } else {
+      nextRoles.push(updatedRole);
+    }
+
+    saveSandboxData("scoc_userRoles", nextRoles);
+    notifyUserRoles();
+    return;
+  }
+
   try {
     // We sanitize Email to use as a Firestore key so we don't duplicate records
     const safeKey = email.toLowerCase().replace(/[^a-z0-9]/g, "_");
@@ -471,6 +974,14 @@ export const updateUserRole = async (email: string, role: "admin" | "viewer") =>
 };
 
 export const deleteUserRole = async (email: string) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_userRoles", INITIAL_MOCK_USER_ROLES);
+    const updated = data.filter((u) => u.email !== email.toLowerCase());
+    saveSandboxData("scoc_userRoles", updated);
+    notifyUserRoles();
+    return;
+  }
+
   try {
     const safeKey = email.toLowerCase().replace(/[^a-z0-9]/g, "_");
     await deleteDoc(doc(db, "userRoles", safeKey));
