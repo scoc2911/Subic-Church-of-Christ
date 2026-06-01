@@ -219,9 +219,9 @@ export default function Home() {
           </button>
 
           {loginError && (
-            <div className="mt-6 p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-850 text-xs leading-relaxed space-y-1.5 animate-in fade-in duration-200">
+            <div className="mt-6 p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-850 text-xs leading-relaxed space-y-1.5 animate-in fade-in duration-200 w-full">
               <p className="font-extrabold uppercase tracking-wider text-[10px] text-orange-700">Popup Action Required</p>
-              <p className="text-gray-700">{loginError}</p>
+              <p className="text-gray-700 whitespace-pre-line">{loginError}</p>
             </div>
           )}
         </div>

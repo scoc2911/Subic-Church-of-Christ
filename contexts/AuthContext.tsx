@@ -104,6 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       } else if (errorCode === "auth/cancelled-popup-request") {
         setLoginError("The sign-in popup was closed before completion. Please keep the Google account window open until authentication finishes.");
+      } else if (errorCode === "auth/unauthorized-domain" || error?.message?.includes("unauthorized-domain") || String(error).includes("unauthorized-domain")) {
+        const currentDomain = typeof window !== "undefined" ? window.location.hostname : "";
+        setLoginError(
+          `Unauthorized Domain: Google Sign-In is blocked for this URL domain.\n\n` +
+          `To fix this, please authorized this domain in your Firebase project:\n` +
+          `1. Go to your Firebase Console: https://console.firebase.google.com/project/scoc-3a755/authentication/settings\n` +
+          `2. Under the 'Authorized domains' section, click on 'Add domain'\n` +
+          `3. Copy and add the following domains:\n` +
+          `   • ais-dev-luphzcnetea7aedkn5z7nj-225614280164.asia-east1.run.app\n` +
+          `   • ais-pre-luphzcnetea7aedkn5z7nj-225614280164.asia-east1.run.app\n` +
+          `   • ${currentDomain || "the active URL domain"}\n` +
+          `4. Click Save, return to this tab, and refresh/reload the page.`
+        );
       } else if (error?.message?.includes("Pending promise")) {
         setLoginError("An active login request was pending. Please refresh this page if SCOC is stuck, or open the app in a new browser tab.");
       } else {

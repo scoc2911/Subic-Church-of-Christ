@@ -1,10 +1,10 @@
 {
-  "projectId": "khaki-arcanum-d6tp2",
-  "appId": "1:536597622479:web:f836ea96354f251d8091ba",
-  "apiKey": "AIzaSyCLd0mfiKR48PQLbNPUTvMVvqTRmoV6lrw",
-  "authDomain": "khaki-arcanum-d6tp2.firebaseapp.com",
+  "projectId": "scoc-3a755",
+  "appId": "1:52968418066:web:3a611961605524c1dfe1cb",
+  "apiKey": "AIzaSyARPthujcUINhzIp2MThBt0r91Ohbvs5h8",
+  "authDomain": "scoc-3a755.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-49b1bcc7-adea-40bc-82b7-3cd05bf88d3a",
-  "storageBucket": "khaki-arcanum-d6tp2.firebasestorage.app",
-  "messagingSenderId": "536597622479",
+  "storageBucket": "scoc-3a755.firebasestorage.app",
+  "messagingSenderId": "52968418066",
   "measurementId": ""
 }
