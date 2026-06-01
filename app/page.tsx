@@ -94,6 +94,8 @@ const calculateCountdown = (dateString: string): { text: string; passed: boolean
   return { text: `${minutes}m left`, passed: false };
 };
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   const { user, role, loading, isLoggingIn, loginError, login, logout } = useAuth();
   
