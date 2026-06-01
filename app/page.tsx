@@ -219,10 +219,96 @@ export default function Home() {
           </button>
 
           {loginError && (
-            <div className="mt-6 p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-850 text-xs leading-relaxed space-y-1.5 animate-in fade-in duration-200 w-full">
-              <p className="font-extrabold uppercase tracking-wider text-[10px] text-orange-700">Popup Action Required</p>
-              <p className="text-gray-700 whitespace-pre-line">{loginError}</p>
-            </div>
+            (() => {
+              const errorLower = loginError.toLowerCase();
+              const isDomainError = errorLower.includes("unauthorized-domain") || errorLower.includes("unauthorized domain");
+              if (isDomainError) {
+                const devDomain = "ais-dev-luphzcnetea7aedkn5z7nj-225614280164.asia-east1.run.app";
+                const preDomain = "ais-pre-luphzcnetea7aedkn5z7nj-225614280164.asia-east1.run.app";
+                return (
+                  <div className="mt-6 p-5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-gray-800 leading-relaxed space-y-4 animate-in fade-in duration-250 w-full shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1 px-2.5 rounded-full bg-amber-100 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                        Action Required
+                      </span>
+                      <span className="text-xs font-bold text-amber-900">Authorize App Domains</span>
+                    </div>
+
+                    <p className="text-gray-600 font-medium">
+                      Google Sign-In needs permission to run on these temporary app-preview URLs. To fix this:
+                    </p>
+
+                    <ol className="list-decimal pl-4 text-[11px] text-gray-700 space-y-2 font-medium">
+                      <li>
+                        Go to your{" "}
+                        <a
+                          href="https://console.firebase.google.com/project/scoc-3a755/authentication/settings"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-blue-600 underline hover:text-blue-800 inline-flex items-center gap-0.5 cursor-pointer"
+                        >
+                          Firebase Console Settings
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      </li>
+                      <li>
+                        Scroll to the <span className="font-semibold text-gray-900">Authorized domains</span> section and click <span className="font-semibold text-gray-900">Add domain</span>.
+                      </li>
+                      <li>Copy and add both domains from below:</li>
+                    </ol>
+
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-amber-100 font-mono text-[10px]">
+                        <span className="text-gray-800 break-all select-all font-semibold">{devDomain}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(devDomain);
+                            alert("Copied dev-environment domain!");
+                          }}
+                          className="ml-3 px-2 py-1 bg-amber-100/50 hover:bg-amber-100 text-amber-950 font-bold rounded text-[9px] border border-amber-200 cursor-pointer transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-amber-100 font-mono text-[10px]">
+                        <span className="text-gray-800 break-all select-all font-semibold">{preDomain}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(preDomain);
+                            alert("Copied pre-preview domain!");
+                          }}
+                          className="ml-3 px-2 py-1 bg-amber-100/50 hover:bg-amber-100 text-amber-950 font-bold rounded text-[9px] border border-amber-200 cursor-pointer transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col gap-2 border-t border-amber-150">
+                      <p className="text-[10px] text-gray-500 font-medium">
+                        4. After clicking <span className="font-semibold text-gray-700">Save</span> in the Console, return here and refresh:
+                      </p>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="w-full text-center py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs transition cursor-pointer"
+                      >
+                        Reload & Try Again
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="mt-6 p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-850 text-xs leading-relaxed space-y-1.5 animate-in fade-in duration-200 w-full animate-in fade-in duration-200">
+                  <p className="font-extrabold uppercase tracking-wider text-[10px] text-orange-700">Popup Action Required</p>
+                  <p className="text-gray-700 whitespace-pre-line">{loginError}</p>
+                </div>
+              );
+            })()
           )}
         </div>
       </div>
