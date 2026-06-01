@@ -199,6 +199,19 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     }
   };
 
+  const handlePrint = () => {
+    try {
+      window.focus();
+      window.print();
+    } catch (err) {
+      console.error("Print triggered an error:", err);
+      alert(
+        "Printing is blocked by the embedded browser preview sandbox.\n\n" +
+        "Workaround: Please open this application in a new tab (click the 'Open in new tab' button at the top-right of your screen) and try printing there. It will work perfectly!"
+      );
+    }
+  };
+
   const handleCopyFollowup = (member: Member) => {
     if (!selectedEvent) return;
     const text = `Hi ${member.firstName}! We missed you at our ${selectedEvent.eventName} today at Subic Church of Christ. We hope everything is well with you. Let us know if we can assist or pray for you! God bless!`;
@@ -373,7 +386,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
                         <FileSpreadsheet className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => window.print()}
+                        onClick={handlePrint}
                         title="Print this sheet or download as PDF"
                         className="p-2 border border-gray-200 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer bg-white transition"
                       >

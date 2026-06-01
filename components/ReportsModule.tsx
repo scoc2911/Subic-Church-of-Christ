@@ -49,7 +49,16 @@ export function ReportsModule({ members }: ReportsModuleProps) {
   }, [members]);
 
   const handlePrintReport = () => {
-    window.print();
+    try {
+      window.focus();
+      window.print();
+    } catch (err) {
+      console.error("Print triggered an error:", err);
+      alert(
+        "Printing is blocked by the embedded browser preview environment.\n\n" +
+        "Workaround: Please open this application in a new tab (click the 'Open in new tab' button at the top-right of your screen) and try printing there. It will work perfectly!"
+      );
+    }
   };
 
   return (

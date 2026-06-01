@@ -6,16 +6,39 @@
 
 @layer utilities {
   @media print {
-    body {
+    html, body {
       background: white !important;
       color: black !important;
+      height: auto !important;
+      overflow: visible !important;
     }
-    .no-print {
+
+    /* Force all scrollable parent divs to expand during printing so they pagination works */
+    main, 
+    .overflow-y-auto, 
+    .flex-grow, 
+    .flex-1 {
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
+      position: relative !important;
+      display: block !important;
+    }
+
+    .no-print,
+    .print\:hidden,
+    [class*="print:hidden"] {
       display: none !important;
     }
+
     .print-only {
       display: block !important;
     }
+
+    .grid {
+      display: grid !important;
+    }
+
     .print-card-landscape {
       width: 297mm !important;
       height: 210mm !important;
@@ -24,6 +47,7 @@
       border: none !important;
       box-shadow: none !important;
     }
+
     .print-card-portrait {
       width: 210mm !important;
       height: 297mm !important;
