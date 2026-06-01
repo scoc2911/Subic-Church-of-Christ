@@ -30,14 +30,11 @@ service cloud.firestore {
 
     // Entity validator: Attendance
     function isValidAttendance(data) {
-      return data.keys().hasAll(['eventId', 'eventName', 'eventDate', 'memberId', 'memberName', 'status', 'updatedAt'])
-        && data.keys().size() == 7
+      return data.keys().hasAll(['eventId', 'presentMembers', 'updatedAt'])
+        && data.keys().size() == 3
         && data.eventId is string && data.eventId.size() <= 128
-        && data.eventName is string && data.eventName.size() <= 128
-        && data.eventDate is string && data.eventDate.size() <= 128
-        && data.memberId is string && data.memberId.size() <= 128
-        && data.memberName is string && data.memberName.size() <= 150
-        && (data.status == 'Present' || data.status == 'Absence' || data.status == 'Absent')
+        && data.presentMembers is list && data.presentMembers.size() <= 10000
+        && (data.presentMembers.size() == 0 || (data.presentMembers[0] is string && data.presentMembers[0].size() <= 128))
         && data.updatedAt == request.time;
     }
 

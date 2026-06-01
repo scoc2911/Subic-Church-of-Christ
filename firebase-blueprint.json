@@ -85,18 +85,25 @@
     },
     "AttendanceRecord": {
       "title": "AttendanceRecord",
-      "description": "Unique historical entry documenting user presence/absence during a scheduled service.",
+      "description": "Unique entry documenting church member presence list during a scheduled service.",
       "type": "object",
       "properties": {
-        "eventId": { "type": "string" },
-        "eventName": { "type": "string" },
-        "eventDate": { "type": "string" },
-        "memberId": { "type": "string" },
-        "memberName": { "type": "string" },
-        "status": { "type": "string", "enum": ["Present", "Absent"] },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "eventId": { 
+          "type": "string",
+          "description": "Reference to the event ID."
+        },
+        "presentMembers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of active member IDs marked present."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the log was last synchronized."
+        }
       },
-      "required": ["eventId", "eventName", "eventDate", "memberId", "memberName", "status", "updatedAt"]
+      "required": ["eventId", "presentMembers", "updatedAt"]
     },
     "AuditLog": {
       "title": "AuditLog",
