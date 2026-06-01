@@ -11,7 +11,7 @@
         },
         "role": {
           "type": "string",
-          "enum": ["admin", "viewer"],
+          "enum": ["admin", "viewer", "guest"],
           "description": "The authorization clearance level."
         },
         "updatedAt": {

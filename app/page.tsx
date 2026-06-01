@@ -126,28 +126,28 @@ export default function Home() {
     onConfirm: () => void;
   }>({ isOpen: false, title: "", description: "", onConfirm: () => {} });
 
+  const [formKey, setFormKey] = useState(0);
+
   // Subscriptions hooks
   useEffect(() => {
-    if (user && role) {
+    if (user && role === "admin") {
       const unsubscribe = subscribeToMembers((data) => {
         setMembers(data);
 
         // Auto-update missing or incorrect age in database
-        if (role === "admin") {
-          data.forEach(async (member) => {
-            if (member.birthday) {
-              const currentAge = member.age;
-              const correctAge = calculateAge(member.birthday);
-              if (correctAge !== undefined && correctAge !== currentAge) {
-                try {
-                  await updateMember(member.id!, { age: correctAge });
-                } catch (err) {
-                  console.error("Failed to auto-update age", err);
-                }
+        data.forEach(async (member) => {
+          if (member.birthday) {
+            const currentAge = member.age;
+            const correctAge = calculateAge(member.birthday);
+            if (correctAge !== undefined && correctAge !== currentAge) {
+              try {
+                await updateMember(member.id!, { age: correctAge });
+              } catch (err) {
+                console.error("Failed to auto-update age", err);
               }
             }
-          });
-        }
+          }
+        });
       });
       return () => unsubscribe();
     }
@@ -172,7 +172,7 @@ export default function Home() {
   }, [user, role]);
 
   useEffect(() => {
-    if (user && role) {
+    if (user && role === "admin") {
       const unsubscribe = subscribeToEvents((data) => {
         setEvents(data);
       });
@@ -227,7 +227,81 @@ export default function Home() {
     );
   }
 
-  if (role !== "admin" && role !== "viewer") {
+  if (role === "viewer" || role === "guest") {
+    const displayRole = role === "viewer" ? "Viewer (Read-Only)" : "Guest";
+
+    // Member registration helper for pure viewer or guest contexts
+    const handleGuestSubmit = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
+      setIsSaving(true);
+      try {
+        await createMember(data);
+        alert("New member profile has been registered successfully.");
+        setFormKey(prev => prev + 1); // Reset form for a fresh profile submission
+      } catch (err) {
+        console.error(err);
+        alert("Failed to register member profile. Please verify your connection status.");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
+        {/* Registration Header */}
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-xs select-none">
+          <div className="flex items-center gap-3">
+            <Logo size={40} className="text-blue-600" />
+            <div>
+              <h1 className="text-base font-black text-gray-950 uppercase tracking-tight leading-none">SUBIC CHURCH OF CHRIST</h1>
+              <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block mt-1">NEW MEMBER PROFILE REGISTRATION PORTAL</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden sm:block">
+              <span className="text-xs font-bold text-gray-950 block leading-none">{user.email}</span>
+              <span className="text-[9px] text-blue-600 font-extrabold uppercase mt-1 inline-block leading-none">{displayRole} account</span>
+            </div>
+            <button
+              onClick={logout}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-gray-300 hover:border-red-200 text-gray-500 hover:text-red-600 hover:bg-red-50 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer bg-white"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Sign Out
+            </button>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-start">
+          <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800 text-xs mb-6 space-y-1">
+            <p className="font-extrabold uppercase tracking-wide">Welcome to the SCOC Member Registry</p>
+            <p className="text-gray-600">Please fill out the form below to register a new church member profile. Once saved successfully, only Administrators have the access privileges required to view, edit, search, or delete catalogued records.</p>
+          </div>
+
+          {/* Form Container */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
+            <h2 className="text-sm font-black text-gray-900 tracking-tight uppercase border-b border-gray-150 pb-3 mb-5">
+              Registration Form
+            </h2>
+            <MemberForm
+              key={formKey}
+              onSubmit={handleGuestSubmit}
+              onCancel={() => {
+                if (confirm("Are you sure you want to clear/reset the form fields?")) {
+                  setFormKey(prev => prev + 1);
+                }
+              }}
+              isSaving={isSaving}
+              networks={networks}
+              ministries={ministries}
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (role !== "admin") {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 p-4 flex-col gap-4">
         <div className="bg-orange-100 text-orange-600 rounded-full h-16 w-16 flex items-center justify-center mb-2 shadow-inner">

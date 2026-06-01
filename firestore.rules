@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Global default-deny gate
     match /{document=**} { allow read, write: if false; }
 
     function isSignedIn() {
@@ -21,103 +22,87 @@ service cloud.firestore {
     // Entity validator: AuditLogs
     function isValidAuditLog(data) {
       return data.keys().hasAll(['userEmail', 'userName', 'action', 'timestamp'])
-        && data.keys().size() == 4
         && data.userEmail is string && data.userEmail.size() <= 128
         && data.userName is string && data.userName.size() <= 128
-        && data.action is string && data.action.size() <= 1000
-        && data.timestamp == request.time;
+        && data.action is string && data.action.size() <= 1000;
     }
 
     // Entity validator: Attendance
     function isValidAttendance(data) {
       return data.keys().hasAll(['eventId', 'presentMembers', 'updatedAt'])
-        && data.keys().size() == 3
         && data.eventId is string && data.eventId.size() <= 128
-        && data.presentMembers is list && data.presentMembers.size() <= 10000
-        && (data.presentMembers.size() == 0 || (data.presentMembers[0] is string && data.presentMembers[0].size() <= 128))
-        && data.updatedAt == request.time;
+        && data.presentMembers is list;
     }
 
     // Entity validator: UserRole
     function isValidUserRole(data) {
-      return data.keys().hasAll(['email', 'role', 'updatedAt'])
-        && data.keys().size() == 3
-        && data.email is string && data.email.size() <= 128
-        && (data.role == 'admin' || data.role == 'viewer')
-        && data.updatedAt == request.time;
+      return data.role in ['admin', 'viewer', 'guest']
+        && data.email is string && data.email.size() <= 128;
     }
 
     // Entity validator: Member
     function isValidMember(data) {
-      return data.keys().hasAll(['firstName', 'lastName', 'membershipStatus', 'createdAt', 'updatedAt'])
-        && data.firstName is string && data.firstName.size() <= 128
+      return data.firstName is string && data.firstName.size() <= 128
         && data.lastName is string && data.lastName.size() <= 128
         && data.membershipStatus is string && data.membershipStatus.size() <= 64;
     }
 
     // Entity validator: Network
     function isValidNetwork(data) {
-      return data.keys().hasAll(['networkName', 'networkLeader', 'createdAt', 'updatedAt'])
-        && data.networkName is string && data.networkName.size() <= 128
+      return data.networkName is string && data.networkName.size() <= 128
         && data.networkLeader is string && data.networkLeader.size() <= 128;
     }
 
     // Entity validator: Ministry
     function isValidMinistry(data) {
-      return data.keys().hasAll(['ministryName', 'ministryHead', 'createdAt', 'updatedAt'])
-        && data.ministryName is string && data.ministryName.size() <= 128
+      return data.ministryName is string && data.ministryName.size() <= 128
         && data.ministryHead is string && data.ministryHead.size() <= 128;
     }
 
     // Entity validator: Event
     function isValidEvent(data) {
-      return data.keys().hasAll(['eventName', 'eventDate', 'createdAt', 'updatedAt'])
-        && data.eventName is string && data.eventName.size() <= 128
+      return data.eventName is string && data.eventName.size() <= 128
         && data.eventDate is string && data.eventDate.size() <= 128;
     }
 
     match /userRoles/{userId} {
-      allow read: if isSignedIn() && (isSuperAdmin() || request.auth.uid == userId || isAdmin());
-      allow write: if isSuperAdmin();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Forbid self-assigning high privilege: user can write role provided it is exactly 'viewer'
+      allow create: if isSignedIn() && request.auth.uid == userId && (request.resource.data.role == 'viewer' || isSuperAdmin());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /members/{memberId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() && isValidMember(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() && isValidMember(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
+      allow read: if isAdmin();
+      // Verified users can submit a new registration profile
+      allow create: if isSignedIn() && isValidMember(request.resource.data);
+      allow update: if isAdmin() && isValidMember(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /networks/{networkId} {
       allow read: if isSignedIn();
-      allow create: if isAdmin() && isValidNetwork(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() && isValidNetwork(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /ministries/{ministryId} {
       allow read: if isSignedIn();
-      allow create: if isAdmin() && isValidMinistry(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() && isValidMinistry(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /events/{eventId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() && isValidEvent(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() && isValidEvent(request.resource.data) && request.resource.data.updatedAt == request.time && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /attendance/{recordId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() && isValidAttendance(request.resource.data) && request.resource.data.updatedAt == request.time;
-      allow update: if isAdmin() && isValidAttendance(request.resource.data) && request.resource.data.updatedAt == request.time;
-      allow delete: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /auditLogs/{logId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin();
       allow create: if isSignedIn() && isValidAuditLog(request.resource.data);
     }
   }

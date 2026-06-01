@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
-export type UserRole = "admin" | "viewer" | null;
+export type UserRole = "admin" | "viewer" | "guest" | null;
 
 interface AuthContextType {
   user: User | null;
@@ -42,16 +42,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         if (currentUser.email === "scoc2911@gmail.com") {
           setRole("admin");
+          try {
+            const roleDocRef = doc(db, "userRoles", currentUser.uid);
+            const roleDoc = await getDoc(roleDocRef);
+            if (!roleDoc.exists()) {
+              await setDoc(roleDocRef, {
+                email: currentUser.email,
+                role: "admin",
+                displayName: currentUser.displayName || "SCOC Global Admin",
+                createdAt: new Date().toISOString()
+              });
+            }
+          } catch (error) {
+            console.error("Failed to write primary admin roleDoc", error);
+          }
         } else {
           try {
-            const roleDoc = await getDoc(doc(db, "userRoles", currentUser.uid));
+            const roleDocRef = doc(db, "userRoles", currentUser.uid);
+            const roleDoc = await getDoc(roleDocRef);
             if (roleDoc.exists()) {
-              setRole(roleDoc.data().role as UserRole);
+              const fetchedRole = roleDoc.data().role as UserRole;
+              setRole(fetchedRole);
             } else {
+              // Automatically assign the VIEWER (Read-Only) role by default for is newly registered users
+              await setDoc(roleDocRef, {
+                email: currentUser.email,
+                role: "viewer",
+                displayName: currentUser.displayName || currentUser.email?.split("@")[0] || "New Worker",
+                createdAt: new Date().toISOString()
+              });
               setRole("viewer");
             }
           } catch (error) {
-            console.error("Failed to fetch user role", error);
+            console.error("Failed to fetch or assign user role", error);
             setRole("viewer");
           }
         }

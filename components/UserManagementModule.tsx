@@ -16,7 +16,7 @@ import {
 interface UserRoles {
   uid: string;
   email: string;
-  role: "admin" | "viewer" | "unapproved";
+  role: "admin" | "viewer" | "guest";
   displayName?: string;
 }
 
@@ -28,7 +28,7 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
   const [users, setUsers] = useState<UserRoles[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState<"admin" | "viewer">("viewer");
+  const [newRole, setNewRole] = useState<"admin" | "viewer" | "guest">("viewer");
   const [isSaving, setIsSaving] = useState(false);
 
   // Load all user roles
@@ -78,7 +78,7 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
     };
   }, [loadUsers]);
 
-  const handleUpdateRole = async (uid: string, email: string, newRole: "admin" | "viewer") => {
+  const handleUpdateRole = async (uid: string, email: string, newRole: "admin" | "viewer" | "guest") => {
     if (email === currentAdminEmail) {
       alert("Primary Admin's role cannot be modified.");
       return;
@@ -196,11 +196,12 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
               <label className="text-xs font-bold text-gray-600 block">Workspace Role Permission *</label>
               <select
                 value={newRole}
-                onChange={(e) => setNewRole(e.target.value as "admin" | "viewer")}
+                onChange={(e) => setNewRole(e.target.value as "admin" | "viewer" | "guest")}
                 className="w-full text-sm bg-white border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-purple-500 font-semibold"
               >
                 <option value="viewer">VIEWER (READ-ONLY)</option>
-                <option value="admin">ADMIN (FULL WRITE-ACCESS)</option>
+                <option value="admin">ADMINISTRATOR</option>
+                <option value="guest">GUEST</option>
               </select>
             </div>
 
@@ -257,11 +258,12 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
                           ) : (
                             <select
                               value={u.role}
-                              onChange={(e) => handleUpdateRole(u.uid, u.email, e.target.value as "admin" | "viewer")}
+                              onChange={(e) => handleUpdateRole(u.uid, u.email, e.target.value as "admin" | "viewer" | "guest")}
                               className="text-xs border border-gray-300 rounded-lg py-1 px-2.5 font-bold outline-none bg-white focus:ring-2 focus:ring-purple-500 cursor-pointer text-gray-700 uppercase"
                             >
+                              <option value="admin">Administrator</option>
                               <option value="viewer">Viewer (Read-Only)</option>
-                              <option value="admin">Administrator (Write)</option>
+                              <option value="guest">Guest</option>
                             </select>
                           )}
                         </td>
