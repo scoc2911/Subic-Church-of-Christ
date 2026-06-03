@@ -58,6 +58,25 @@ const sanitizeData = <T extends Record<string, any>>(data: T): Partial<T> => {
   return sanitized;
 };
 
+// Helper to serialize Firestore data, converting nested Timestamps to ISO strings
+const serializeDoc = (data: any): any => {
+  if (data === null || data === undefined) return data;
+  if (Array.isArray(data)) {
+    return data.map(serializeDoc);
+  }
+  if (typeof data === "object") {
+    if (typeof data.toDate === "function") {
+      return data.toDate().toISOString();
+    }
+    const serialized: any = {};
+    for (const key of Object.keys(data)) {
+      serialized[key] = serializeDoc(data[key]);
+    }
+    return serialized;
+  }
+  return data;
+};
+
 // ----------------------------------------------------
 // SANDBOX MODE DATABASE INTERFACE SUPPORT
 // ----------------------------------------------------
@@ -252,7 +271,7 @@ export const subscribeToMembers = (callback: (members: Member[]) => void) => {
     (snapshot) => {
       const members = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        ...serializeDoc(doc.data()),
       })) as Member[];
       callback(members);
     },
@@ -389,7 +408,7 @@ export const subscribeToNetworks = (callback: (networks: Network[]) => void) => 
     (snapshot) => {
       const networks = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        ...serializeDoc(doc.data()),
       })) as Network[];
       callback(networks);
     },
@@ -504,7 +523,7 @@ export const subscribeToMinistries = (callback: (ministries: Ministry[]) => void
     (snapshot) => {
       const ministries = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        ...serializeDoc(doc.data()),
       })) as Ministry[];
       callback(ministries);
     },
@@ -621,7 +640,7 @@ export const subscribeToEvents = (callback: (events: ChurchEvent[]) => void) => 
     (snapshot) => {
       const events = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        ...serializeDoc(doc.data()),
       })) as ChurchEvent[];
       // Sort by soonest approaching
       events.sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
@@ -751,7 +770,7 @@ export const subscribeToAttendance = (eventId: string, callback: (records: Atten
       const records = snapshot.docs
         .map((doc) => ({
           id: doc.id,
-          ...doc.data(),
+          ...serializeDoc(doc.data()),
         })) as AttendanceRecord[];
       // Filter in-memory for accuracy and ease of indexing
       const filtered = records.filter(r => r.eventId === eventId);
@@ -866,11 +885,10 @@ export const subscribeToAuditLogs = (callback: (logs: AuditLog[]) => void) => {
     q,
     (snapshot) => {
       const logs = snapshot.docs.map((doc) => {
-        const data = doc.data();
+        const data = serializeDoc(doc.data());
         let timestampStr = "—";
         if (data.timestamp) {
-          const t = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
-          timestampStr = t.toLocaleString();
+          timestampStr = new Date(data.timestamp).toLocaleString();
         }
         return {
           id: doc.id,
@@ -880,8 +898,8 @@ export const subscribeToAuditLogs = (callback: (logs: AuditLog[]) => void) => {
       });
       // Sort logs by newest first
       logs.sort((a, b) => {
-        const timeA = a.timestamp?.seconds || 0;
-        const timeB = b.timestamp?.seconds || 0;
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return timeB - timeA;
       });
       callback(logs);
@@ -918,7 +936,7 @@ export const subscribeToUserRoles = (callback: (roles: SystemUserRole[]) => void
     (snapshot) => {
       const userRoles = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        ...serializeDoc(doc.data()),
       })) as SystemUserRole[];
       callback(userRoles);
     },
