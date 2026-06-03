@@ -72,15 +72,34 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
       }
       setIsLoading(true);
       try {
-        const attendanceDocRef = doc(db, "attendance", selectedEventId);
-        const snapshot = await getDoc(attendanceDocRef).catch((err) => {
-          handleFirestoreError(err, OperationType.GET, `attendance/${selectedEventId}`);
-        });
-        if (!active) return;
-        if (snapshot.exists()) {
-          setPresentMembers(snapshot.data().presentMembers || []);
+        if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+          const raw = localStorage.getItem(`scoc_sandbox_attendance_${selectedEventId}`);
+          if (raw) {
+            try {
+              const data = JSON.parse(raw);
+              if (active) setPresentMembers(data.presentMembers || []);
+            } catch (e) {
+              if (active) setPresentMembers([]);
+            }
+          } else {
+            // Default mock: event 'evt_1' has mock_1 and mock_3 present
+            if (selectedEventId === "evt_1") {
+              if (active) setPresentMembers(["mock_1", "mock_3"]);
+            } else {
+              if (active) setPresentMembers([]);
+            }
+          }
         } else {
-          setPresentMembers([]);
+          const attendanceDocRef = doc(db, "attendance", selectedEventId);
+          const snapshot = await getDoc(attendanceDocRef).catch((err) => {
+            handleFirestoreError(err, OperationType.GET, `attendance/${selectedEventId}`);
+          });
+          if (!active) return;
+          if (snapshot && snapshot.exists()) {
+            setPresentMembers(snapshot.data().presentMembers || []);
+          } else {
+            setPresentMembers([]);
+          }
         }
       } catch (err) {
         console.error("Error loading attendance", err);
@@ -133,18 +152,45 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     if (!selectedEventId) return;
     setIsSaving(true);
     try {
-      const attendanceDocRef = doc(db, "attendance", selectedEventId);
-      await setDoc(attendanceDocRef, {
-        eventId: selectedEventId,
-        presentMembers,
-        updatedAt: serverTimestamp(),
-      }).catch((err) => {
-        handleFirestoreError(err, OperationType.WRITE, `attendance/${selectedEventId}`);
-      });
-      setToast({
-        message: "Attendance sheet successfully saved and synced to database.",
-        type: "success"
-      });
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const payload = {
+          eventId: selectedEventId,
+          presentMembers,
+          updatedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(`scoc_sandbox_attendance_${selectedEventId}`, JSON.stringify(payload));
+
+        // Create virtual audit log
+        const rawLogs = localStorage.getItem("scoc_auditLogs") || "[]";
+        let logs = [];
+        try { logs = JSON.parse(rawLogs); } catch (e) {}
+        logs.unshift({
+          id: `log_${Date.now()}`,
+          userEmail: "scoc2911@gmail.com",
+          userName: "SCOC Sandbox Admin",
+          action: `Saved attendance registry for Event ID: ${selectedEventId} with ${presentMembers.length} present (Offline Sandbox).`,
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem("scoc_auditLogs", JSON.stringify(logs));
+
+        setToast({
+          message: "Attendance sheet successfully saved (Offline Sandbox).",
+          type: "success"
+        });
+      } else {
+        const attendanceDocRef = doc(db, "attendance", selectedEventId);
+        await setDoc(attendanceDocRef, {
+          eventId: selectedEventId,
+          presentMembers,
+          updatedAt: serverTimestamp(),
+        }).catch((err) => {
+          handleFirestoreError(err, OperationType.WRITE, `attendance/${selectedEventId}`);
+        });
+        setToast({
+          message: "Attendance sheet successfully saved and synced to database.",
+          type: "success"
+        });
+      }
     } catch (err: any) {
       console.error(err);
       setToast({

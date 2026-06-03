@@ -35,29 +35,64 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
   const loadUsers = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const snap = await getDocs(collection(db, "userRoles"));
-      const list: UserRoles[] = [];
-      snap.forEach((d) => {
-        const data = d.data();
-        list.push({
-          uid: d.id,
-          email: data.email || "",
-          role: data.role || "viewer",
-          displayName: data.displayName || ""
-        });
-      });
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const rawRoles = localStorage.getItem("scoc_sandbox_userRoles");
+        let list: UserRoles[] = [];
+        if (rawRoles) {
+          try { list = JSON.parse(rawRoles); } catch (e) {}
+        } else {
+          list = [
+            {
+              uid: "sandbox_admin",
+              email: "scoc2911@gmail.com",
+              role: "admin",
+              displayName: "SCOC Sandbox Admin"
+            },
+            {
+              uid: "mock_worker_1",
+              email: "jane.doe@gmail.com",
+              role: "viewer",
+              displayName: "Jane Doe"
+            }
+          ];
+          localStorage.setItem("scoc_sandbox_userRoles", JSON.stringify(list));
+        }
 
-      // If the primary admin is not in the list, write or include them
-      if (!list.some(u => u.email === currentAdminEmail)) {
-        list.unshift({
-          uid: "scoc-primary",
-          email: currentAdminEmail,
-          role: "admin",
-          displayName: "SCOC Global Admin"
+        // If the primary admin is not in the list, write or include them
+        if (!list.some(u => u.email === currentAdminEmail)) {
+          list.unshift({
+            uid: "sandbox_admin",
+            email: currentAdminEmail,
+            role: "admin",
+            displayName: "SCOC Sandbox Admin"
+          });
+        }
+        setUsers(list);
+      } else {
+        const snap = await getDocs(collection(db, "userRoles"));
+        const list: UserRoles[] = [];
+        snap.forEach((d) => {
+          const data = d.data();
+          list.push({
+            uid: d.id,
+            email: data.email || "",
+            role: data.role || "viewer",
+            displayName: data.displayName || ""
+          });
         });
+
+        // If the primary admin is not in the list, write or include them
+        if (!list.some(u => u.email === currentAdminEmail)) {
+          list.unshift({
+            uid: "scoc-primary",
+            email: currentAdminEmail,
+            role: "admin",
+            displayName: "SCOC Global Admin"
+          });
+        }
+
+        setUsers(list);
       }
-
-      setUsers(list);
     } catch (err) {
       console.error(err);
     } finally {
@@ -85,14 +120,31 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
     }
 
     try {
-      await setDoc(doc(db, "userRoles", uid), {
-        email,
-        role: newRole,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-      
-      alert(`User role for ${email} successfully updated to ${newRole}.`);
-      loadUsers();
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const rawRoles = localStorage.getItem("scoc_sandbox_userRoles") || "[]";
+        let list: UserRoles[] = [];
+        try { list = JSON.parse(rawRoles); } catch (e) {}
+        
+        const idx = list.findIndex(u => u.uid === uid);
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], role: newRole };
+        } else {
+          list.push({ uid, email, role: newRole, displayName: email.split("@")[0].toUpperCase() });
+        }
+        localStorage.setItem("scoc_sandbox_userRoles", JSON.stringify(list));
+        
+        alert(`User role for ${email} successfully updated to ${newRole} (Offline Sandbox).`);
+        loadUsers();
+      } else {
+        await setDoc(doc(db, "userRoles", uid), {
+          email,
+          role: newRole,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        alert(`User role for ${email} successfully updated to ${newRole}.`);
+        loadUsers();
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to update user role.");
@@ -106,18 +158,36 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
     setIsSaving(true);
     try {
       const emailLower = newEmail.trim().toLowerCase();
-      // Use the email as a seed key or generate an id
       const fakeUid = `pre_${Date.now()}`;
-      await setDoc(doc(db, "userRoles", fakeUid), {
-        email: emailLower,
-        role: newRole,
-        displayName: "Pre-approved User",
-        createdAt: new Date().toISOString()
-      });
+      
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const rawRoles = localStorage.getItem("scoc_sandbox_userRoles") || "[]";
+        let list: UserRoles[] = [];
+        try { list = JSON.parse(rawRoles); } catch (e) {}
 
-      setNewEmail("");
-      alert(`Access rules added for ${emailLower}.`);
-      loadUsers();
+        list.push({
+          uid: fakeUid,
+          email: emailLower,
+          role: newRole,
+          displayName: "Pre-approved User"
+        });
+        localStorage.setItem("scoc_sandbox_userRoles", JSON.stringify(list));
+        
+        setNewEmail("");
+        alert(`Access rules added for ${emailLower} (Offline Sandbox).`);
+        loadUsers();
+      } else {
+        await setDoc(doc(db, "userRoles", fakeUid), {
+          email: emailLower,
+          role: newRole,
+          displayName: "Pre-approved User",
+          createdAt: new Date().toISOString()
+        });
+
+        setNewEmail("");
+        alert(`Access rules added for ${emailLower}.`);
+        loadUsers();
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to pre-approve user.");
@@ -137,9 +207,21 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
     }
 
     try {
-      await deleteDoc(doc(db, "userRoles", uid));
-      alert(`Access rights revoked for ${email}.`);
-      loadUsers();
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const rawRoles = localStorage.getItem("scoc_sandbox_userRoles") || "[]";
+        let list: UserRoles[] = [];
+        try { list = JSON.parse(rawRoles); } catch (e) {}
+        
+        const filtered = list.filter(u => u.uid !== uid);
+        localStorage.setItem("scoc_sandbox_userRoles", JSON.stringify(filtered));
+        
+        alert(`Access rights revoked for ${email} (Offline Sandbox).`);
+        loadUsers();
+      } else {
+        await deleteDoc(doc(db, "userRoles", uid));
+        alert(`Access rights revoked for ${email}.`);
+        loadUsers();
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to revoke access.");
