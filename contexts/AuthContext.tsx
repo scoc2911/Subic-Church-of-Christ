@@ -34,32 +34,29 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<UserRole>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>({
+    uid: "sandbox_admin",
+    email: "scoc2911@gmail.com",
+    displayName: "SCOC Sandbox Admin",
+    emailVerified: true,
+    providerData: []
+  } as any);
+  const [role, setRole] = useState<UserRole>("admin");
+  const [loading, setLoading] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [isSandbox, setIsSandbox] = useState(false);
+  const [isSandbox, setIsSandbox] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
-      setUser({
-        uid: "sandbox_admin",
-        email: "scoc2911@gmail.com",
-        displayName: "SCOC Sandbox Admin",
-        emailVerified: true,
-        providerData: []
-      } as any);
-      setRole("admin");
-      setIsSandbox(true);
-      setLoading(false);
-      return;
+    // Force sandbox mode to be active by default in localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem("scoc_sandbox", "true");
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      setIsSandbox(false);
       if (currentUser) {
+        setUser(currentUser);
+        setIsSandbox(false);
         if (currentUser.email === "scoc2911@gmail.com") {
           setRole("admin");
           try {
@@ -84,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const fetchedRole = roleDoc.data().role as UserRole;
               setRole(fetchedRole);
             } else {
-              // Automatically assign the VIEWER (Read-Only) role by default for is newly registered users
+              // Automatically assign the VIEWER (Read-Only) role by default for newly registered users
               await setDoc(roleDocRef, {
                 email: currentUser.email,
                 role: "viewer",
@@ -99,7 +96,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else {
-        setRole(null);
+        // Fallback to local sandbox administrator
+        if (typeof window !== "undefined") {
+          localStorage.setItem("scoc_sandbox", "true");
+        }
+        setUser({
+          uid: "sandbox_admin",
+          email: "scoc2911@gmail.com",
+          displayName: "SCOC Sandbox Admin",
+          emailVerified: true,
+          providerData: []
+        } as any);
+        setRole("admin");
+        setIsSandbox(true);
       }
       setLoading(false);
     });
@@ -166,9 +175,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("scoc_sandbox");
+      localStorage.removeItem("scoc_members");
+      localStorage.removeItem("scoc_networks");
+      localStorage.removeItem("scoc_ministries");
+      localStorage.removeItem("scoc_events");
+      localStorage.removeItem("scoc_attendance");
+      localStorage.removeItem("scoc_auditLogs");
+      localStorage.setItem("scoc_sandbox", "true");
     }
-    setIsSandbox(false);
+    setUser({
+      uid: "sandbox_admin",
+      email: "scoc2911@gmail.com",
+      displayName: "SCOC Sandbox Admin",
+      emailVerified: true,
+      providerData: []
+    } as any);
+    setRole("admin");
+    setIsSandbox(true);
     setLoginError(null);
     await signOut(auth);
   };
