@@ -74,7 +74,8 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      allow read: if isAdmin();
+      allow get: if isAdmin();
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 10);
       // Verified users can submit a new registration profile
       allow create: if isSignedIn() && isValidMember(request.resource.data);
       allow update: if isAdmin() && isValidMember(request.resource.data);

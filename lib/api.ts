@@ -7,6 +7,8 @@ import {
   query,
   onSnapshot,
   serverTimestamp,
+  where,
+  limit,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { OperationType, handleFirestoreError } from "./firebase-error";
@@ -279,6 +281,76 @@ export const subscribeToMembers = (callback: (members: Member[]) => void) => {
       handleFirestoreError(error, OperationType.GET, "members");
     }
   );
+};
+
+export const checkDuplicateMember = async (
+  firstName: string,
+  lastName: string,
+  birthday?: string,
+  contactNumber?: string,
+  email?: string
+): Promise<Member | null> => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+    const match = data.find((m) => {
+      const sameName = m.firstName.trim().toUpperCase() === firstName.trim().toUpperCase() &&
+                       m.lastName.trim().toUpperCase() === lastName.trim().toUpperCase();
+      if (!sameName) return false;
+
+      if (birthday && m.birthday && m.birthday === birthday) return true;
+      if (contactNumber && m.contactNumber) {
+        const c1 = contactNumber.replace(/[^0-9]/g, "");
+        const c2 = m.contactNumber.replace(/[^0-9]/g, "");
+        if (c1 && c2 && c1 === c2) return true;
+      }
+      if (email && m.email && email.trim().toUpperCase() === m.email.trim().toUpperCase()) return true;
+
+      const hasNoIdentifiersInNew = !birthday && !contactNumber && !email;
+      const hasNoIdentifiersInExisting = !m.birthday && !m.contactNumber && !m.email;
+      if (hasNoIdentifiersInNew || hasNoIdentifiersInExisting) {
+        return true;
+      }
+      return false;
+    });
+    return match || null;
+  }
+
+  try {
+    const q = query(
+      collection(db, "members"),
+      where("lastName", "==", lastName.trim().toUpperCase()),
+      where("firstName", "==", firstName.trim().toUpperCase()),
+      limit(10)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      return null;
+    }
+
+    for (const d of snap.docs) {
+      const m = { id: d.id, ...d.data() } as Member;
+      
+      if (birthday && m.birthday && m.birthday === birthday) return m;
+      
+      if (contactNumber && m.contactNumber) {
+        const c1 = contactNumber.replace(/[^0-9]/g, "");
+        const c2 = m.contactNumber.replace(/[^0-9]/g, "");
+        if (c1 && c2 && c1 === c2) return m;
+      }
+      
+      if (email && m.email && email.trim().toUpperCase() === m.email.trim().toUpperCase()) return m;
+
+      const hasNoIdentifiersInNew = !birthday && !contactNumber && !email;
+      const hasNoIdentifiersInExisting = !m.birthday && !m.contactNumber && !m.email;
+      if (hasNoIdentifiersInNew || hasNoIdentifiersInExisting) {
+        return m;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Duplicate check error:", error);
+    return null;
+  }
 };
 
 export const createMember = async (memberData: Omit<Member, "id" | "createdAt" | "updatedAt">) => {

@@ -16,7 +16,8 @@ import {
   subscribeToEvents, 
   createEvent, 
   updateEvent, 
-  deleteEvent 
+  deleteEvent,
+  checkDuplicateMember
 } from "@/lib/api";
 import { MemberForm, calculateAge } from "@/components/MemberForm";
 import { Logo } from "@/components/Logo";
@@ -113,6 +114,8 @@ export default function Home() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
+  const [duplicateMatch, setDuplicateMatch] = useState<Member | null>(null);
+  const [isDuplicateWarningOpen, setIsDuplicateWarningOpen] = useState(false);
 
   // Event Scheduler modal state (Compatible with original flow)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
@@ -321,6 +324,19 @@ export default function Home() {
     const handleGuestSubmit = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
       setIsSaving(true);
       try {
+        const duplicate = await checkDuplicateMember(
+          data.firstName,
+          data.lastName,
+          data.birthday,
+          data.contactNumber,
+          data.email
+        );
+        if (duplicate) {
+          setDuplicateMatch(duplicate);
+          setIsDuplicateWarningOpen(true);
+          setIsSaving(false);
+          return;
+        }
         await createMember(data);
         alert("New member profile has been registered successfully.");
         setFormKey(prev => prev + 1); // Reset form for a fresh profile submission
@@ -409,6 +425,19 @@ export default function Home() {
   const handleMemberSubmit = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
     setIsSaving(true);
     try {
+      const duplicate = await checkDuplicateMember(
+        data.firstName,
+        data.lastName,
+        data.birthday,
+        data.contactNumber,
+        data.email
+      );
+      if (duplicate && duplicate.id !== editingMember?.id) {
+        setDuplicateMatch(duplicate);
+        setIsDuplicateWarningOpen(true);
+        setIsSaving(false);
+        return;
+      }
       if (editingMember) {
         await updateMember(editingMember.id!, data);
         alert("Member profile successfully updated.");
@@ -759,6 +788,97 @@ export default function Home() {
                   networks={networks}
                   ministries={ministries}
                 />
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+
+        {/* DUPLICATE MEMBER WARNING MODAL */}
+        <Dialog.Root open={isDuplicateWarningOpen} onOpenChange={setIsDuplicateWarningOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-gray-950/40 backdrop-blur-xs z-[100] transition-opacity" />
+            <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[85vh] w-[95vw] max-w-[500px] rounded-2xl bg-white p-7 shadow-2xl z-[100] overflow-y-auto outline-none transition-transform animate-scale-up border border-orange-100">
+              <div className="flex flex-col items-center text-center">
+                <div className="bg-orange-100 text-orange-600 rounded-full h-14 w-14 flex items-center justify-center mb-4 shadow-inner">
+                  <AlertCircle className="w-7 h-7" />
+                </div>
+                
+                <Dialog.Title className="text-base font-black text-gray-950 tracking-tight uppercase mb-2">
+                  Duplicate Member Profile Detected
+                </Dialog.Title>
+                
+                <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-sm mb-6">
+                  This member already exists in the database. Duplicate records are not allowed.
+                </p>
+
+                {duplicateMatch && (
+                  <div className="bg-gray-50 border border-gray-150 rounded-xl p-4 w-full text-left space-y-2.5 mb-6">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-1.5">
+                      Existing Profile Facts
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                      <div>
+                        <span className="block text-[10px] text-gray-400 font-bold uppercase">Full Name</span>
+                        <span className="font-extrabold text-gray-900">
+                          {duplicateMatch.lastName}, {duplicateMatch.firstName} {duplicateMatch.middleName || ""}
+                        </span>
+                      </div>
+                      {duplicateMatch.birthday && (
+                        <div>
+                          <span className="block text-[10px] text-gray-400 font-bold uppercase">Birth Date</span>
+                          <span className="font-semibold text-gray-700">{duplicateMatch.birthday}</span>
+                        </div>
+                      )}
+                      {duplicateMatch.contactNumber && (
+                        <div>
+                          <span className="block text-[10px] text-gray-400 font-bold uppercase">Contact Number</span>
+                          <span className="font-semibold text-gray-700">{duplicateMatch.contactNumber}</span>
+                        </div>
+                      )}
+                      {duplicateMatch.email && (
+                        <div>
+                          <span className="block text-[10px] text-gray-400 font-bold uppercase">Email Address</span>
+                          <span className="font-semibold text-gray-700 font-mono text-[10px] break-all">{duplicateMatch.email}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="block text-[10px] text-gray-400 font-bold uppercase">Membership Status</span>
+                        <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase text-blue-700 bg-blue-50 border border-blue-100 mt-0.5">
+                          {duplicateMatch.membershipStatus}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-2 w-full justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDuplicateWarningOpen(false);
+                      setDuplicateMatch(null);
+                    }}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-gray-150 text-gray-700 text-xs font-black rounded-lg hover:bg-gray-200 transition uppercase tracking-wider cursor-pointer text-center"
+                  >
+                    Close & Review Form
+                  </button>
+                  {role === "admin" && duplicateMatch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDuplicateWarningOpen(false);
+                        setIsFormModalOpen(false);
+                        setTimeout(() => {
+                          setEditingMember(duplicateMatch);
+                          setIsFormModalOpen(true);
+                        }, 150);
+                      }}
+                      className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white text-xs font-black rounded-lg hover:bg-blue-700 transition uppercase tracking-wider cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      ✏️ Edit Existing Member
+                    </button>
+                  )}
+                </div>
               </div>
             </Dialog.Content>
           </Dialog.Portal>
