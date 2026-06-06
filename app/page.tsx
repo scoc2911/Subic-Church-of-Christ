@@ -97,7 +97,7 @@ const calculateCountdown = (dateString: string): { text: string; passed: boolean
 export const dynamic = "force-dynamic";
 
 export default function Home() {
-  const { user, role, loading, isLoggingIn, loginError, login, logout, isSandbox, loginSandbox } = useAuth();
+  const { user, role, loading, isLoggingIn, loginError, login, logout, isSandbox } = useAuth();
   
   // Real-time Firestore Subscribed States
   const [members, setMembers] = useState<Member[]>([]);
@@ -215,18 +215,6 @@ export default function Home() {
                 Connecting Google Account...
               </span>
             ) : "Sign in with Google Account"}
-          </button>
-
-          <div className="relative flex items-center justify-center my-4 w-full">
-            <div className="absolute w-full border-t border-gray-150"></div>
-            <span className="relative bg-white px-3.5 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-none">or</span>
-          </div>
-
-          <button
-            onClick={loginSandbox}
-            className="w-full h-12 bg-gray-50 hover:bg-gray-100 text-blue-700 border border-gray-200 hover:border-blue-200 rounded-lg font-bold transition flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer text-xs animate-in fade-in duration-300"
-          >
-            Launch Offline Sandbox Mode
           </button>
 
           {loginError && (
