@@ -283,6 +283,38 @@ export const subscribeToMembers = (callback: (members: Member[]) => void) => {
   );
 };
 
+export const subscribeToMyProfile = (email: string, callback: (member: Member | null) => void) => {
+  if (isSandboxActive()) {
+    const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+    const matched = data.find((m) => m.email?.toLowerCase().trim() === email.toLowerCase().trim());
+    callback(matched || null);
+    return () => {};
+  }
+
+  const q = query(
+    collection(db, "members"),
+    where("email", "==", email.trim())
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        callback({
+          id: docSnap.id,
+          ...serializeDoc(docSnap.data()),
+        } as Member);
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.error("subscribeToMyProfile error:", error);
+      callback(null);
+    }
+  );
+};
+
 export const checkDuplicateMember = async (
   firstName: string,
   lastName: string,

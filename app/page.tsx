@@ -17,7 +17,8 @@ import {
   createEvent, 
   updateEvent, 
   deleteEvent,
-  checkDuplicateMember
+  checkDuplicateMember,
+  subscribeToMyProfile
 } from "@/lib/api";
 import { MemberForm, calculateAge } from "@/components/MemberForm";
 import { Logo } from "@/components/Logo";
@@ -58,7 +59,14 @@ import {
   X, 
   AlertCircle,
   Calendar,
-  CalendarDays
+  CalendarDays,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  GraduationCap,
+  Heart,
+  Edit3
 } from "lucide-react";
 
 type ActiveTab = 
@@ -117,6 +125,11 @@ export default function Home() {
   const [duplicateMatch, setDuplicateMatch] = useState<Member | null>(null);
   const [isDuplicateWarningOpen, setIsDuplicateWarningOpen] = useState(false);
 
+  // Viewer / Guest self profile state
+  const [myProfile, setMyProfile] = useState<Member | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
+  const [isEditingMyProfile, setIsEditingMyProfile] = useState<boolean>(false);
+
   // Event Scheduler modal state (Compatible with original flow)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [newEventName, setNewEventName] = useState("");
@@ -173,6 +186,19 @@ export default function Home() {
         setMinistries(data);
       });
       return () => unsubscribe();
+    }
+  }, [user, role]);
+
+  useEffect(() => {
+    if (user && user.email && (role === "viewer" || role === "guest")) {
+      setIsLoadingProfile(true);
+      const unsubscribe = subscribeToMyProfile(user.email, (data) => {
+        setMyProfile(data);
+        setIsLoadingProfile(false);
+      });
+      return () => unsubscribe();
+    } else {
+      setIsLoadingProfile(false);
     }
   }, [user, role]);
 
@@ -320,16 +346,38 @@ export default function Home() {
   if (role === "viewer" || role === "guest") {
     const displayRole = role === "viewer" ? "Viewer (Read-Only)" : "Guest";
 
-    // Member registration helper for pure viewer or guest contexts
+    const handleMyProfileUpdate = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
+      if (!myProfile?.id) return;
+      setIsSaving(true);
+      try {
+        const updatedData = {
+          ...data,
+          email: user?.email || data.email || "",
+        };
+        await updateMember(myProfile.id, updatedData);
+        alert("Personal profile record updated successfully.");
+        setIsEditingMyProfile(false);
+      } catch (err) {
+        console.error("Profile update error:", err);
+        alert("Failed to update profile. Please verify credentials / internet connection.");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
     const handleGuestSubmit = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
       setIsSaving(true);
       try {
+        const finalData = {
+          ...data,
+          email: user?.email || data.email || "",
+        };
         const duplicate = await checkDuplicateMember(
-          data.firstName,
-          data.lastName,
-          data.birthday,
-          data.contactNumber,
-          data.email
+          finalData.firstName,
+          finalData.lastName,
+          finalData.birthday,
+          finalData.contactNumber,
+          finalData.email
         );
         if (duplicate) {
           setDuplicateMatch(duplicate);
@@ -337,9 +385,9 @@ export default function Home() {
           setIsSaving(false);
           return;
         }
-        await createMember(data);
-        alert("New member profile has been registered successfully.");
-        setFormKey(prev => prev + 1); // Reset form for a fresh profile submission
+        await createMember(finalData);
+        alert("Your initial church member profile has been registered and loaded successfully.");
+        setFormKey(prev => prev + 1);
       } catch (err) {
         console.error(err);
         alert("Failed to register member profile. Please verify your connection status.");
@@ -348,22 +396,41 @@ export default function Home() {
       }
     };
 
+    const ProfileField = ({ label, value, icon }: { label: string; value?: string | number | boolean; icon?: React.ReactNode }) => {
+      let displayValue = value;
+      if (value === true) displayValue = "Yes";
+      if (value === false) displayValue = "No";
+      return (
+        <div className="p-3 bg-gray-50/50 hover:bg-gray-50 rounded-xl border border-gray-150/60 flex items-start gap-3 transition">
+          {icon && <div className="text-blue-600 mt-0.5">{icon}</div>}
+          <div className="space-y-0.5">
+            <span className="block text-[9px] text-gray-400 font-extrabold uppercase tracking-wider">{label}</span>
+            <span className="font-extrabold text-xs text-gray-950">{displayValue || <span className="text-gray-300 font-normal italic">Not Specified</span>}</span>
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
-        {/* Registration Header */}
+        {/* Workspace Portal Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-xs select-none">
           <div className="flex items-center gap-3">
             <Logo size={40} className="text-blue-600" />
             <div>
               <h1 className="text-base font-black text-gray-950 uppercase tracking-tight leading-none">SUBIC CHURCH OF CHRIST</h1>
-              <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block mt-1">NEW MEMBER PROFILE REGISTRATION PORTAL</span>
+              <span className="text-[10px] text-blue-600 font-black uppercase tracking-wider block mt-1">
+                {myProfile ? "MEMBER PROFILE WORKSPACE & PORTAL" : "NEW MEMBER REGISTRATION PORTAL"}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <span className="text-xs font-bold text-gray-950 block leading-none">{user.email}</span>
-              <span className="text-[9px] text-blue-600 font-extrabold uppercase mt-1 inline-block leading-none">{displayRole} account</span>
+              <span className="text-xs font-bold text-gray-950 block leading-none">{user?.email}</span>
+              <span className="text-[9px] text-blue-600 font-extrabold uppercase mt-1 inline-block leading-none">
+                {displayRole} Account
+              </span>
             </div>
             <button
               onClick={logout}
@@ -374,32 +441,214 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Main Content Area */}
-        <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-start">
-          <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800 text-xs mb-6 space-y-1">
-            <p className="font-extrabold uppercase tracking-wide">Welcome to the SCOC Member Registry</p>
-            <p className="text-gray-600">Please fill out the form below to register a new church member profile. Once saved successfully, only Administrators have the access privileges required to view, edit, search, or delete catalogued records.</p>
-          </div>
+        {/* Loading Spinner */}
+        {isLoadingProfile ? (
+          <main className="flex-1 max-w-4xl w-full mx-auto p-8 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider animate-pulse">Syncing profile record details...</p>
+            </div>
+          </main>
+        ) : myProfile ? (
+          /* Profile Detail or Edit Workspace */
+          <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-start space-y-6">
+            
+            {/* Header Welcome Card */}
+            <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
+              <div className="flex flex-col md:flex-row items-center gap-4 md:text-left text-center">
+                <div className="h-20 w-20 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-black text-3xl shadow-sm uppercase">
+                  {myProfile.firstName.slice(0, 1)}
+                  {myProfile.lastName.slice(0, 1)}
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                    <h2 className="text-xl font-black text-gray-950 tracking-tight leading-none uppercase">
+                      {myProfile.firstName} {myProfile.lastName}
+                    </h2>
+                    <span className="inline-block px-2.5 py-1 rounded-full text-[9px] font-black uppercase text-blue-700 bg-blue-50 border border-blue-100">
+                      {myProfile.membershipStatus}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Membership ID: <span className="font-bold text-gray-700">{myProfile.membershipId || "Not Assigned"}</span> • Added on {myProfile.createdAt ? new Date(myProfile.createdAt).toLocaleDateString() : "Initial Setup"}
+                  </p>
+                  <p className="text-[11px] text-gray-400 font-medium max-w-md">
+                    Welcome to your personal profile page. Logged in as a <span className="font-bold text-blue-600">{displayRole}</span>, you can safely monitor, update, and manage your specific registry facts.
+                  </p>
+                </div>
+              </div>
+              
+              {!isEditingMyProfile && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingMyProfile(true)}
+                  className="px-4 py-2 border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-600 font-extrabold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shrink-0 shadow-xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5" /> Modify Profile Details
+                </button>
+              )}
+            </div>
 
-          {/* Form Container */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
-            <h2 className="text-sm font-black text-gray-900 tracking-tight uppercase border-b border-gray-150 pb-3 mb-5">
-              Registration Form
-            </h2>
-            <MemberForm
-              key={formKey}
-              onSubmit={handleGuestSubmit}
-              onCancel={() => {
-                if (confirm("Are you sure you want to clear/reset the form fields?")) {
-                  setFormKey(prev => prev + 1);
-                }
-              }}
-              isSaving={isSaving}
-              networks={networks}
-              ministries={ministries}
-            />
-          </div>
-        </main>
+            {isEditingMyProfile ? (
+              /* Profile Update Form Wrapper */
+              <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
+                <div className="border-b border-gray-150 pb-3 mb-5 flex items-center justify-between">
+                  <h2 className="text-sm font-black text-gray-900 tracking-tight uppercase flex items-center gap-2">
+                    Modify Records Info Form
+                  </h2>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">Locked To {user?.email}</span>
+                </div>
+                <MemberForm
+                  initialData={myProfile}
+                  onSubmit={handleMyProfileUpdate}
+                  onCancel={() => {
+                    setIsEditingMyProfile(false);
+                  }}
+                  isSaving={isSaving}
+                  networks={networks}
+                  ministries={ministries}
+                />
+              </div>
+            ) : (
+              /* Display Profile Details Cards */
+              <div className="space-y-6">
+                
+                {/* Section: Personal Info */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Personal Facts</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+                    <ProfileField label="First Name" value={myProfile.firstName} />
+                    <ProfileField label="Middle Name" value={myProfile.middleName} />
+                    <ProfileField label="Last Name" value={myProfile.lastName} />
+                    <ProfileField label="Gender" value={myProfile.gender} />
+                    <ProfileField label="Birthday" value={myProfile.birthday} icon={<Calendar className="w-3.5 h-3.5" />} />
+                    <ProfileField label="Computed Age" value={myProfile.age || (myProfile.birthday ? calculateAge(myProfile.birthday) : undefined)} />
+                    <ProfileField label="Marital Status" value={myProfile.maritalStatus} />
+                    <ProfileField label="Voter Status" value={myProfile.voter ? "Registered Voter" : "No"} />
+                  </div>
+                </div>
+
+                {/* Section: Contact & Location */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Contact & Address</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    <ProfileField label="Email Address" value={myProfile.email} icon={<Mail className="w-3.5 h-3.5" />} />
+                    <ProfileField label="Contact Number" value={myProfile.contactNumber} icon={<Phone className="w-3.5 h-3.5" />} />
+                    <div className="md:col-span-3">
+                      <ProfileField label="Home Address" value={myProfile.address} icon={<MapPin className="w-3.5 h-3.5" />} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Spiritual Records */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                    <Droplet className="w-4 h-4 text-gray-400" />
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Baptism Record</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                    <ProfileField label="Baptized in SCOC / Affiliated" value={myProfile.isBaptized ? "Yes" : "No"} />
+                    <ProfileField label="Baptism Date" value={myProfile.baptismDate} icon={<CalendarDays className="w-3.5 h-3.5" />} />
+                    <ProfileField label="Executed By (Minister)" value={myProfile.baptismExecutedBy} />
+                    <ProfileField label="Witness 1" value={myProfile.baptismWitness1} />
+                    <ProfileField label="Witness 2" value={myProfile.baptismWitness2} />
+                  </div>
+                </div>
+
+                {/* Section: Group Associations */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                    <Building className="w-4 h-4 text-gray-400" />
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Cluster & Ministry Assignments</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <ProfileField label="Cluster Network" value={myProfile.network} icon={<Building className="w-3.5 h-3.5" />} />
+                    <ProfileField label="Network Leader" value={myProfile.networkLeader} />
+                    <ProfileField label="Ministry Service" value={myProfile.ministry} icon={<Layers className="w-3.5 h-3.5" />} />
+                    <ProfileField label="Ministry Head" value={myProfile.ministryHead} />
+                  </div>
+                </div>
+
+                {/* Section: Education, Relations & Notes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-4">
+                    <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                      <GraduationCap className="w-4 h-4 text-gray-400" />
+                      <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Education Details</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <ProfileField label="School or Alma Mater" value={myProfile.school} />
+                      <ProfileField label="Course / Discipline" value={myProfile.course} />
+                      <ProfileField label="Current Year Level" value={myProfile.yearLevel} />
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-4">
+                    <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+                      <Heart className="w-4 h-4 text-gray-400" />
+                      <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Family References</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <ProfileField label="Father's Full Name" value={myProfile.fathersName} />
+                      <ProfileField label="Mother's Full Name" value={myProfile.mothersName} />
+                      <ProfileField label="Spouse's Name" value={myProfile.spouseName} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Administrative Notes */}
+                {myProfile.notes && (
+                  <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-3">
+                    <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                      <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Registry Notes & Remarks</h3>
+                    </div>
+                    <p className="text-xs text-gray-650 bg-gray-50 p-4 rounded-xl border border-gray-150/60 leading-relaxed font-semibold">
+                      {myProfile.notes}
+                    </p>
+                  </div>
+                )}
+
+              </div>
+            )}
+          </main>
+        ) : (
+          /* Subic Church Registry Form (For new self profiles) */
+          <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-start">
+            <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800 text-xs mb-6 space-y-1.5">
+              <p className="font-extrabold uppercase tracking-wide">Primary User Registration Needed</p>
+              <p className="text-gray-600 font-semibold">
+                No existing record matches your signed-in email address (<span className="font-extrabold text-gray-800">{user?.email}</span>) in SCOC's Digital Registry database yet.
+                Please complete your personal information below to create your official profile card.
+              </p>
+            </div>
+
+            {/* Form Container */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
+              <h2 className="text-sm font-black text-gray-900 tracking-tight uppercase border-b border-gray-150 pb-3 mb-5">
+                Initial Registry Setup Form
+              </h2>
+              <MemberForm
+                key={formKey}
+                initialData={{ email: user?.email || "", membershipStatus: "Active" } as any}
+                onSubmit={handleGuestSubmit}
+                onCancel={() => {
+                  if (confirm("Are you sure you want to clear/reset the form fields?")) {
+                    setFormKey((prev) => prev + 1);
+                  }
+                }}
+                isSaving={isSaving}
+                networks={networks}
+                ministries={ministries}
+              />
+            </div>
+          </main>
+        )}
       </div>
     );
   }
