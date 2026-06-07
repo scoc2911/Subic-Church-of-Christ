@@ -30,6 +30,7 @@ import { DashboardModule } from "@/components/DashboardModule";
 import { MemberDirectoryModule } from "@/components/MemberDirectoryModule";
 import { BaptismRecordsModule } from "@/components/BaptismRecordsModule";
 import { AttendanceModule } from "@/components/AttendanceModule";
+import { ActiveEventLogsModule } from "@/components/ActiveEventLogsModule";
 import { ReportsModule } from "@/components/ReportsModule";
 import { MinistriesModule } from "@/components/MinistriesModule";
 import { NetworksModule } from "@/components/NetworksModule";
@@ -71,6 +72,7 @@ type ActiveTab =
   | "members"
   | "baptisms"
   | "attendance"
+  | "logs"
   | "reports"
   | "ministries"
   | "networks"
@@ -857,6 +859,7 @@ export default function Home() {
     { id: "members", label: "Registry Directory", icon: Users, adminOnly: false },
     { id: "baptisms", label: "Baptismal Registry", icon: Droplet, adminOnly: false },
     { id: "attendance", label: "Attendance Tracker", icon: ListTodo, adminOnly: false },
+    { id: "logs", label: "Active Event Logs", icon: Clock, adminOnly: true },
     { id: "reports", label: "Demographics & Reports", icon: FilePieChart, adminOnly: false },
     { id: "ministries", label: "Ministries", icon: Building, adminOnly: true },
     { id: "networks", label: "Networks", icon: Layers, adminOnly: true },
@@ -1051,6 +1054,10 @@ export default function Home() {
             events={events}
             role={activeRole}
           />
+        )}
+
+        {activeTab === "logs" && activeRole === "admin" && (
+          <ActiveEventLogsModule />
         )}
 
         {activeTab === "reports" && (

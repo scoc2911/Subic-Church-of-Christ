@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Member, ChurchEvent } from "@/lib/api";
+import { Member, ChurchEvent, createAuditLog } from "@/lib/api";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { handleFirestoreError, OperationType } from "@/lib/firebase-error";
 import { 
   Users, 
@@ -69,75 +69,116 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
   // Load attendance when event is selected
   useEffect(() => {
     let active = true;
+    let unsubscribeFirestore: (() => void) | null = null;
+
     const loadAttendance = async () => {
       if (!selectedEventId) {
-        setTimeout(() => {
-          if (active) {
-            setPresentMembers([]);
-            setScans([]);
-          }
-        }, 0);
+        if (active) {
+          setPresentMembers([]);
+          setScans([]);
+        }
         return;
       }
       setIsLoading(true);
       try {
         if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
-          const raw = localStorage.getItem(`scoc_sandbox_attendance_${selectedEventId}`);
-          if (raw) {
-            try {
-              const data = JSON.parse(raw);
-              if (active) {
-                setPresentMembers(data.presentMembers || []);
-                setScans(data.scans || []);
-              }
-            } catch (e) {
-              if (active) {
-                setPresentMembers([]);
-                setScans([]);
-              }
-            }
-          } else {
-            // Default mock: event 'evt_1' has mock_1 and mock_3 present
-            if (selectedEventId === "evt_1") {
-              if (active) {
-                setPresentMembers(["mock_1", "mock_3"]);
-                setScans([
-                  { memberId: "mock_1", name: "Maria Teresa Santos", scannedAt: "2026-06-07T08:35:00Z" },
-                  { memberId: "mock_3", name: "Danilo Perez", scannedAt: "2026-06-07T08:42:00Z" }
-                ]);
+          const loadLocalData = () => {
+            const raw = localStorage.getItem(`scoc_sandbox_attendance_${selectedEventId}`);
+            if (raw) {
+              try {
+                const data = JSON.parse(raw);
+                if (active) {
+                  setPresentMembers(data.presentMembers || []);
+                  setScans(data.scans || []);
+                }
+              } catch (e) {
+                if (active) {
+                  setPresentMembers([]);
+                  setScans([]);
+                }
               }
             } else {
-              if (active) {
+              // Default mock: event 'evt_1' has mock_1 and mock_3 present
+              if (selectedEventId === "evt_1") {
+                if (active) {
+                  setPresentMembers(["mock_1", "mock_3"]);
+                  setScans([
+                    { memberId: "mock_1", name: "Maria Teresa Santos", scannedAt: "2026-06-07T08:35:00Z" },
+                    { memberId: "mock_3", name: "Danilo Perez", scannedAt: "2026-06-07T08:42:00Z" }
+                  ]);
+                }
+              } else {
+                if (active) {
+                  setPresentMembers([]);
+                  setScans([]);
+                }
+              }
+            }
+          };
+
+          loadLocalData();
+
+          // Listen to storage changes across tabs/panels
+          const handleStorageEvent = (e: StorageEvent) => {
+            if (e.key === `scoc_sandbox_attendance_${selectedEventId}`) {
+              loadLocalData();
+            }
+          };
+          window.addEventListener("storage", handleStorageEvent);
+
+          // Listen to same-window sandbox actions (e.g. toggles, scans)
+          const handleLocalUpdate = () => {
+            loadLocalData();
+          };
+          window.addEventListener("storage_local_update", handleLocalUpdate);
+
+          setIsLoading(false);
+
+          return () => {
+            window.removeEventListener("storage", handleStorageEvent);
+            window.removeEventListener("storage_local_update", handleLocalUpdate);
+          };
+        } else {
+          const attendanceDocRef = doc(db, "attendance", selectedEventId);
+          unsubscribeFirestore = onSnapshot(
+            attendanceDocRef,
+            (snapshot) => {
+              if (!active) return;
+              if (snapshot && snapshot.exists()) {
+                const data = snapshot.data();
+                setPresentMembers(data.presentMembers || []);
+                setScans(data.scans || []);
+              } else {
                 setPresentMembers([]);
                 setScans([]);
               }
+              setIsLoading(false);
+            },
+            (err) => {
+              console.error("Realtime subscription error:", err);
+              handleFirestoreError(err, OperationType.GET, `attendance/${selectedEventId}`);
+              if (active) setIsLoading(false);
             }
-          }
-        } else {
-          const attendanceDocRef = doc(db, "attendance", selectedEventId);
-          const snapshot = await getDoc(attendanceDocRef).catch((err) => {
-            handleFirestoreError(err, OperationType.GET, `attendance/${selectedEventId}`);
-          });
-          if (!active) return;
-          if (snapshot && snapshot.exists()) {
-            const data = snapshot.data();
-            setPresentMembers(data.presentMembers || []);
-            setScans(data.scans || []);
-          } else {
-            setPresentMembers([]);
-            setScans([]);
-          }
+          );
         }
       } catch (err) {
         console.error("Error loading attendance", err);
-      } finally {
         if (active) setIsLoading(false);
       }
     };
 
-    loadAttendance();
+    const cleanup = loadAttendance();
     return () => {
       active = false;
+      if (unsubscribeFirestore) {
+        unsubscribeFirestore();
+      }
+      // Execute sandbox event listeners cleanup if it was returned
+      cleanup.then((unsubSandbox) => {
+        if (typeof unsubSandbox === "function") {
+          unsubSandbox();
+        }
+      }).catch(() => {});
     };
   }, [selectedEventId]);
 
@@ -221,6 +262,10 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
       type: "success"
     });
 
+    const activeEvent = events.find(e => e.id === selectedEventId);
+    const eventNameStr = activeEvent?.eventName || "Worship Service";
+    const logMsg = `Check-in Success: ${name} marked Present for "${eventNameStr}" on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} (Status: Present)`;
+
     // 4. Save to DB automatically in real time!
     try {
       if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
@@ -240,10 +285,13 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
           id: `log_${Date.now()}`,
           userEmail: "scoc2911@gmail.com",
           userName: "SCOC Sandbox Admin",
-          action: `Automated scan check-in logged for ${name} using SCOC verification pass`,
+          action: logMsg,
           timestamp: new Date().toISOString()
         });
         localStorage.setItem("scoc_auditLogs", JSON.stringify(logs));
+
+        // Dispatch local storage update event to instantly sync UI
+        window.dispatchEvent(new Event("storage_local_update"));
       } else {
         const attendanceDocRef = doc(db, "attendance", selectedEventId);
         await setDoc(attendanceDocRef, {
@@ -252,6 +300,13 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
           scans: updatedScans,
           updatedAt: serverTimestamp()
         }, { merge: true });
+
+        // Add real-time audit log
+        await createAuditLog({
+          userEmail: "scoc2911@gmail.com",
+          userName: "SCOC Admin",
+          action: logMsg
+        });
       }
     } catch (e) {
       console.error("Failed to save real-time scan attendance:", e);
@@ -322,38 +377,163 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     handleQrCodeScanned(simulatedResponseText);
   };
 
-  const handleToggleAttendance = (memberId: string) => {
+  const handleToggleAttendance = async (memberId: string) => {
     if (role !== "admin") return;
-    setPresentMembers((prev) => {
-      if (prev.includes(memberId)) {
-        return prev.filter((id) => id !== memberId);
+    if (!selectedEventId) return;
+
+    const member = members.find((m) => m.id === memberId);
+    if (!member) return;
+
+    const name = `${member.firstName} ${member.lastName}`;
+    const activeEvent = events.find((e) => e.id === selectedEventId);
+    const eventNameStr = activeEvent?.eventName || "Worship Service";
+
+    let updatedPresent = [];
+    let statusText = "";
+    if (presentMembers.includes(memberId)) {
+      updatedPresent = presentMembers.filter((id) => id !== memberId);
+      statusText = "Absent";
+    } else {
+      updatedPresent = [...presentMembers, memberId];
+      statusText = "Present";
+    }
+
+    setPresentMembers(updatedPresent);
+
+    const logMsg = `Check-in Mutated: ${name} marked ${statusText} for "${eventNameStr}" on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} (Status: ${statusText})`;
+
+    try {
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const payload = {
+          eventId: selectedEventId,
+          presentMembers: updatedPresent,
+          scans,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(`scoc_sandbox_attendance_${selectedEventId}`, JSON.stringify(payload));
+        
+        // Audit trail
+        const rawLogs = localStorage.getItem("scoc_auditLogs") || "[]";
+        let logs = [];
+        try { logs = JSON.parse(rawLogs); } catch (e) {}
+        logs.unshift({
+          id: `log_${Date.now()}`,
+          userEmail: "scoc2911@gmail.com",
+          userName: "SCOC Sandbox Admin",
+          action: logMsg,
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem("scoc_auditLogs", JSON.stringify(logs));
+
+        // Dispatch local storage update event to instantly sync UI
+        window.dispatchEvent(new Event("storage_local_update"));
       } else {
-        return [...prev, memberId];
+        const attendanceDocRef = doc(db, "attendance", selectedEventId);
+        await setDoc(attendanceDocRef, {
+          eventId: selectedEventId,
+          presentMembers: updatedPresent,
+          scans,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        // Add real-time audit log
+        await createAuditLog({
+          userEmail: "scoc2911@gmail.com",
+          userName: "SCOC Admin",
+          action: logMsg
+        });
       }
-    });
+      setToast({
+        message: `${name} status set to ${statusText}.`,
+        type: "success"
+      });
+    } catch (e) {
+      console.error("Failed to toggle real-time attendance:", e);
+      setToast({
+        message: "Failed to update attendance status.",
+        type: "error"
+      });
+    }
   };
 
-  const handleSelectAll = () => {
+  const handleSelectAll = async () => {
     if (role !== "admin") return;
-    const filteredIds = filteredMembers.map(m => m.id!);
-    
-    setPresentMembers((prev) => {
-      // Toggle only the ones currently visible in the filtered list!
-      const containsAll = filteredIds.every(id => prev.includes(id));
-      if (containsAll) {
-        // Uncheck only the filtered ones
-        return prev.filter(id => !filteredIds.includes(id));
-      } else {
-        // Add only the filtered ones
-        const unique = new Set([...prev, ...filteredIds]);
-        return Array.from(unique);
-      }
-    });
+    if (!selectedEventId) return;
 
-    setToast({
-      message: `Toggled marking all shown members on this view.`,
-      type: "info"
-    });
+    const filteredIds = filteredMembers.map(m => m.id!);
+    const containsAll = filteredIds.every(id => presentMembers.includes(id));
+
+    let updatedPresent = [];
+    let statusText = "";
+    if (containsAll) {
+      // Uncheck only the filtered ones
+      updatedPresent = presentMembers.filter(id => !filteredIds.includes(id));
+      statusText = "Absent";
+    } else {
+      // Add only the filtered ones
+      const unique = new Set([...presentMembers, ...filteredIds]);
+      updatedPresent = Array.from(unique);
+      statusText = "Present";
+    }
+
+    setPresentMembers(updatedPresent);
+
+    const activeEvent = events.find((e) => e.id === selectedEventId);
+    const eventNameStr = activeEvent?.eventName || "Worship Service";
+    const logMsg = `Batch Mutation: Toggled check-in state to ${statusText} for ${filteredIds.length} members on "${eventNameStr}" on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} (Status: ${statusText})`;
+
+    try {
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const payload = {
+          eventId: selectedEventId,
+          presentMembers: updatedPresent,
+          scans,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(`scoc_sandbox_attendance_${selectedEventId}`, JSON.stringify(payload));
+        
+        // Audit trail
+        const rawLogs = localStorage.getItem("scoc_auditLogs") || "[]";
+        let logs = [];
+        try { logs = JSON.parse(rawLogs); } catch (e) {}
+        logs.unshift({
+          id: `log_${Date.now()}`,
+          userEmail: "scoc2911@gmail.com",
+          userName: "SCOC Sandbox Admin",
+          action: logMsg,
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem("scoc_auditLogs", JSON.stringify(logs));
+
+        // Dispatch local storage update event to instantly sync UI
+        window.dispatchEvent(new Event("storage_local_update"));
+      } else {
+        const attendanceDocRef = doc(db, "attendance", selectedEventId);
+        await setDoc(attendanceDocRef, {
+          eventId: selectedEventId,
+          presentMembers: updatedPresent,
+          scans,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        // Add real-time audit log
+        await createAuditLog({
+          userEmail: "scoc2911@gmail.com",
+          userName: "SCOC Admin",
+          action: logMsg
+        });
+      }
+      setToast({
+        message: `Toggled marking all shown members as ${statusText}.`,
+        type: "success"
+      });
+    } catch (e) {
+      console.error("Failed to batch toggle real-time attendance:", e);
+      setToast({
+        message: "Failed to perform bulk toggling.",
+        type: "error"
+      });
+    }
   };
 
   const handleSaveAttendance = async () => {
