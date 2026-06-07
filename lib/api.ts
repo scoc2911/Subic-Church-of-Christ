@@ -303,7 +303,8 @@ export const subscribeToMyProfile = (email: string, callback: (member: Member | 
 
   const q = query(
     collection(db, "members"),
-    where("email", "in", emailVariants)
+    where("email", "in", emailVariants),
+    limit(1)
   );
   return onSnapshot(
     q,
@@ -358,28 +359,78 @@ export const checkDuplicateMember = async (
   }
 
   try {
-    const q = query(
+    // 1. Check by email if provided because email is unique.
+    if (email) {
+      const normalized = email.trim();
+      const lower = normalized.toLowerCase();
+      const upper = normalized.toUpperCase();
+      const parts = normalized.split("@");
+      const capitalized = parts.length > 1
+        ? `${parts[0].charAt(0).toUpperCase()}${parts[0].slice(1).toLowerCase()}@${parts[1].toLowerCase()}`
+        : normalized;
+      const emailVariants = Array.from(new Set([normalized, lower, upper, capitalized]));
+
+      const emailQuery = query(
+        collection(db, "members"),
+        where("email", "in", emailVariants),
+        limit(5)
+      );
+      const emailSnap = await getDocs(emailQuery);
+      if (!emailSnap.empty) {
+        return {
+          id: emailSnap.docs[0].id,
+          ...serializeDoc(emailSnap.docs[0].data()),
+        } as Member;
+      }
+    }
+
+    // 2. Name-based duplicate queries.
+    const cleanFirst = firstName.trim();
+    const cleanLast = lastName.trim();
+
+    const firstVariants = Array.from(new Set([
+      cleanFirst,
+      cleanFirst.toUpperCase(),
+      cleanFirst.toLowerCase(),
+      cleanFirst.charAt(0).toUpperCase() + cleanFirst.slice(1).toLowerCase()
+    ]));
+
+    const lastVariants = Array.from(new Set([
+      cleanLast,
+      cleanLast.toUpperCase(),
+      cleanLast.toLowerCase(),
+      cleanLast.charAt(0).toUpperCase() + cleanLast.slice(1).toLowerCase()
+    ]));
+
+    // Query lastName, then filter by firstName in memory to avoid firestore constraints
+    const nameQuery = query(
       collection(db, "members"),
-      where("lastName", "==", lastName.trim().toUpperCase()),
-      where("firstName", "==", firstName.trim().toUpperCase()),
+      where("lastName", "in", lastVariants),
       limit(10)
     );
-    const snap = await getDocs(q);
+
+    const snap = await getDocs(nameQuery);
     if (snap.empty) {
       return null;
     }
 
+    const firstVariantsUpper = firstVariants.map(v => v.toUpperCase());
+
     for (const d of snap.docs) {
-      const m = { id: d.id, ...d.data() } as Member;
-      
+      const m = { id: d.id, ...serializeDoc(d.data()) } as Member;
+      const mFirstUpper = (m.firstName || "").trim().toUpperCase();
+      if (!firstVariantsUpper.includes(mFirstUpper)) {
+        continue;
+      }
+
       if (birthday && m.birthday && m.birthday === birthday) return m;
-      
+
       if (contactNumber && m.contactNumber) {
         const c1 = contactNumber.replace(/[^0-9]/g, "");
         const c2 = m.contactNumber.replace(/[^0-9]/g, "");
         if (c1 && c2 && c1 === c2) return m;
       }
-      
+
       if (email && m.email && email.trim().toUpperCase() === m.email.trim().toUpperCase()) return m;
 
       const hasNoIdentifiersInNew = !birthday && !contactNumber && !email;
