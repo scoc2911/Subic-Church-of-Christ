@@ -13,8 +13,13 @@ import {
   Filter, 
   Calendar, 
   NotebookPen,
-  ChevronDown
+  ChevronDown,
+  QrCode,
+  Download,
+  Printer,
+  X
 } from "lucide-react";
+import QRCode from "qrcode";
 
 interface MemberDirectoryModuleProps {
   members: Member[];
@@ -45,6 +50,26 @@ export function MemberDirectoryModule({
   const [baptismFilter, setBaptismFilter] = useState<"all" | "baptized" | "unbaptized">("all");
   const [networkFilter, setNetworkFilter] = useState<string>("all");
   const [ministryFilter, setMinistryFilter] = useState<string>("all");
+
+  const [selectedMemberForQr, setSelectedMemberForQr] = useState<Member | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+
+  React.useEffect(() => {
+    if (selectedMemberForQr) {
+      QRCode.toDataURL(selectedMemberForQr.qrCode || `scoc-member-id:${selectedMemberForQr.id}`, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: "#1e1b4b", // deep cosmic indigo shade
+          light: "#ffffff",
+        },
+      })
+        .then((url) => setQrCodeUrl(url))
+        .catch((err) => console.error("QR Pass Generation Error", err));
+    } else {
+      setQrCodeUrl("");
+    }
+  }, [selectedMemberForQr]);
 
   const filteredMembers = members.filter((m) => {
     const term = search.toLowerCase();
@@ -210,8 +235,9 @@ export function MemberDirectoryModule({
               <tr>
                 <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Member Name</th>
                 <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">ID / Age</th>
-                <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Address & Groups</th>
+                <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Address & Groups</th>
                 <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Check-In Pass</th>
                 {role === "admin" && (
                   <th scope="col" className="relative px-6 py-3.5 w-24">
                     <span className="sr-only">Actions</span>
@@ -266,6 +292,16 @@ export function MemberDirectoryModule({
                       {member.membershipStatus}
                     </span>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => setSelectedMemberForQr(member)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-indigo-50/50 hover:bg-indigo-50 text-indigo-750 border border-indigo-150 rounded-lg transition cursor-pointer leading-none"
+                      title="View member verification pass"
+                    >
+                      <QrCode className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Scan pass</span>
+                    </button>
+                  </td>
                   {role === "admin" && (
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-1">
@@ -305,6 +341,121 @@ export function MemberDirectoryModule({
           </table>
         </div>
       </div>
+
+      {selectedMemberForQr && (
+        <div id="qr-modal" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full border border-gray-150 shadow-2xl overflow-hidden flex flex-col transform transition-all duration-300 scale-100">
+            {/* Header */}
+            <div className="bg-indigo-900 px-5 py-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-indigo-300" />
+                <h3 className="font-bold text-sm">Personal Check-In Pass</h3>
+              </div>
+              <button
+                onClick={() => setSelectedMemberForQr(null)}
+                className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition border-none bg-transparent cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 text-center space-y-4">
+              <div className="space-y-1">
+                <h4 className="text-base font-bold text-gray-900">
+                  {selectedMemberForQr.firstName} {selectedMemberForQr.lastName}
+                </h4>
+                <p className="text-xs text-gray-400 font-mono">
+                  MEMBER ID: {selectedMemberForQr.membershipId || "—"}
+                </p>
+                <p className="text-[10px] text-gray-400 font-mono">
+                  UID: {selectedMemberForQr.id || "—"}
+                </p>
+              </div>
+
+              {/* QR Image Container */}
+              <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex items-center justify-center min-h-[220px]">
+                {qrCodeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrCodeUrl}
+                    alt="SCOC Member QR Pass"
+                    id="qr-image"
+                    className="w-48 h-48 rounded-lg shadow-sm border border-white"
+                  />
+                ) : (
+                  <p className="text-xs text-indigo-400 animate-pulse">Generating check-in pass...</p>
+                )}
+              </div>
+
+              <p className="text-[11px] text-gray-500 leading-relaxed max-w-xs mx-auto">
+                Scan this unique barcode to register attendance and record arrival automatically!
+              </p>
+            </div>
+
+            {/* Footer actions */}
+            <div className="bg-gray-50/80 border-t border-gray-150 px-5 py-4 flex items-center justify-end gap-2 text-xs">
+              <button
+                onClick={() => {
+                  try {
+                    const printWindow = window.open("", "_blank");
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <html>
+                          <head>
+                            <title>Print QR Check-In - ${selectedMemberForQr.firstName} ${selectedMemberForQr.lastName}</title>
+                            <style>
+                              body { font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 40px; color: #1e1b4b; background-color: #f8fafc; }
+                              .container { border: 2px dashed #6366f1; background: #ffffff; border-radius: 20px; padding: 40px; display: inline-block; max-width: 340px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+                              h2 { margin: 15px 0 5px; font-size: 20px; font-weight: 700; }
+                              .id { margin: 0 0 10px; font-size: 13px; color: #64748b; font-family: monospace; letter-spacing: 0.05em; font-weight: 600; }
+                              .desc { margin: 0 0 25px; font-size: 12px; color: #475569; line-height: 1.5; }
+                              img { width: 200px; height: 200px; padding: 10px; background: #faf5ff; border: 1px solid #e2e8f0; border-radius: 12px; }
+                              .footer { font-size: 11px; color: #94a3b8; margin-top: 15px; border-t: 1px solid #e2e8f0; padding-top: 15px; font-weight: 700; letter-spacing: 0.1em; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="container">
+                              <img src="${qrCodeUrl}" />
+                              <h2>${selectedMemberForQr.firstName} ${selectedMemberForQr.lastName}</h2>
+                              <div class="id">ID: ${selectedMemberForQr.membershipId || "—"}</div>
+                              <div class="desc">Please scan this secure code barcode at the entrance desk to log attendance.</div>
+                              <div class="footer">SUBIC CHURCH OF CHRIST</div>
+                            </div>
+                            <script>
+                              window.onload = function() { window.print(); window.close(); }
+                            </script>
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                    }
+                  } catch (e) {
+                    console.error("Print popup blocked", e);
+                    alert("Print window pop-up was blocked by your browser. Please allow pop-ups or open in a new tab to print!");
+                  }
+                }}
+                disabled={!qrCodeUrl}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-bold rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                <Printer className="w-3.5 h-3.5 text-gray-500" />
+                Print Pass
+              </button>
+              
+              <a
+                href={qrCodeUrl}
+                download={`SCOC_QR_${selectedMemberForQr.firstName}_${selectedMemberForQr.lastName}.png`}
+                className={`inline-flex items-center gap-1.5 px-4.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md shadow-indigo-600/10 cursor-pointer ${
+                  !qrCodeUrl ? "pointer-events-none opacity-50" : ""
+                }`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download PNG
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

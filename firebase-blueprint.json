@@ -42,6 +42,7 @@
         "baptismExecutedBy": { "type": "string" },
         "baptismWitness1": { "type": "string" },
         "baptismWitness2": { "type": "string" },
+        "qrCode": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

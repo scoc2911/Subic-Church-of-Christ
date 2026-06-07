@@ -25,6 +25,7 @@ export interface Member {
   address?: string;
   contactNumber?: string;
   email?: string;
+  qrCode?: string;
   yearLevel?: string;
   course?: string;
   school?: string;
@@ -261,7 +262,12 @@ const notifyUserRoles = () => {
 export const subscribeToMembers = (callback: (members: Member[]) => void) => {
   if (isSandboxActive()) {
     membersCallbacks.push(callback);
-    callback(getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS));
+    const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+    const membersWithQr = data.map((m) => ({
+      ...m,
+      qrCode: m.qrCode || `scoc-member-id:${m.id}`,
+    }));
+    callback(membersWithQr);
     return () => {
       membersCallbacks = membersCallbacks.filter((cb) => cb !== callback);
     };
@@ -271,10 +277,14 @@ export const subscribeToMembers = (callback: (members: Member[]) => void) => {
   return onSnapshot(
     q,
     (snapshot) => {
-      const members = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...serializeDoc(doc.data()),
-      })) as Member[];
+      const members = snapshot.docs.map((doc) => {
+        const d = serializeDoc(doc.data());
+        return {
+          id: doc.id,
+          ...d,
+          qrCode: d.qrCode || `scoc-member-id:${doc.id}`,
+        };
+      }) as Member[];
       callback(members);
     },
     (error) => {
@@ -287,7 +297,14 @@ export const subscribeToMyProfile = (email: string, callback: (member: Member | 
   if (isSandboxActive()) {
     const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
     const matched = data.find((m) => m.email?.toLowerCase().trim() === email.toLowerCase().trim());
-    callback(matched || null);
+    if (matched) {
+      callback({
+        ...matched,
+        qrCode: matched.qrCode || `scoc-member-id:${matched.id}`,
+      });
+    } else {
+      callback(null);
+    }
     return () => {};
   }
 
@@ -311,9 +328,11 @@ export const subscribeToMyProfile = (email: string, callback: (member: Member | 
     (snapshot) => {
       if (!snapshot.empty) {
         const docSnap = snapshot.docs[0];
+        const d = serializeDoc(docSnap.data());
         callback({
           id: docSnap.id,
-          ...serializeDoc(docSnap.data()),
+          ...d,
+          qrCode: d.qrCode || `scoc-member-id:${docSnap.id}`,
         } as Member);
       } else {
         callback(null);
@@ -449,9 +468,11 @@ export const checkDuplicateMember = async (
 export const createMember = async (memberData: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
   if (isSandboxActive()) {
     const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
+    const id = `mock_${Date.now()}`;
     const newMember: Member = {
-      id: `mock_${Date.now()}`,
+      id,
       ...memberData,
+      qrCode: memberData.qrCode || `scoc-member-id:${id}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -470,12 +491,13 @@ export const createMember = async (memberData: Omit<Member, "id" | "createdAt" |
   }
 
   try {
+    const newDocRef = doc(collection(db, "members"));
     const finalMemberData = {
       ...memberData,
       email: memberData.email ? memberData.email.toLowerCase().trim() : "",
+      qrCode: memberData.qrCode || `scoc-member-id:${newDocRef.id}`,
     };
     const sanitized = sanitizeData(finalMemberData);
-    const newDocRef = doc(collection(db, "members"));
     await setDoc(newDocRef, {
       ...sanitized,
       createdAt: serverTimestamp(),

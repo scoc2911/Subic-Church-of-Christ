@@ -1,6 +1,6 @@
 {
   "name": "Subic Church of Christ Data Entry",
   "description": "Data entry system for Subic Church of Christ members with role-based access and database storage.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

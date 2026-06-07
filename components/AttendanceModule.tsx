@@ -22,7 +22,8 @@ import {
   XCircle,
   Copy,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
+  QrCode
 } from "lucide-react";
 
 interface AttendanceModuleProps {
@@ -41,9 +42,14 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
   // Advanced States
   const [selectedNetwork, setSelectedNetwork] = useState("");
   const [selectedMinistry, setSelectedMinistry] = useState("");
-  const [currentTab, setCurrentTab] = useState<"all" | "present" | "absent">("all");
+  const [currentTab, setCurrentTab] = useState<"all" | "present" | "absent" | "qr_scanner">("all");
   const [copiedMemberId, setCopiedMemberId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+
+  // QR Check-In Terminal States
+  const [scans, setScans] = useState<Array<{ memberId: string; name: string; scannedAt: string }>>([]);
+  const [useUploadInstead, setUseUploadInstead] = useState(false);
+  const [lastScannedResult, setLastScannedResult] = useState<{ name: string; time: string; status: "success" | "duplicate" | "error"; errorMsg?: string } | null>(null);
 
   // Active member list
   const activeMembers = members.filter(m => m.membershipStatus === "Active");
@@ -66,7 +72,10 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     const loadAttendance = async () => {
       if (!selectedEventId) {
         setTimeout(() => {
-          if (active) setPresentMembers([]);
+          if (active) {
+            setPresentMembers([]);
+            setScans([]);
+          }
         }, 0);
         return;
       }
@@ -77,16 +86,31 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
           if (raw) {
             try {
               const data = JSON.parse(raw);
-              if (active) setPresentMembers(data.presentMembers || []);
+              if (active) {
+                setPresentMembers(data.presentMembers || []);
+                setScans(data.scans || []);
+              }
             } catch (e) {
-              if (active) setPresentMembers([]);
+              if (active) {
+                setPresentMembers([]);
+                setScans([]);
+              }
             }
           } else {
             // Default mock: event 'evt_1' has mock_1 and mock_3 present
             if (selectedEventId === "evt_1") {
-              if (active) setPresentMembers(["mock_1", "mock_3"]);
+              if (active) {
+                setPresentMembers(["mock_1", "mock_3"]);
+                setScans([
+                  { memberId: "mock_1", name: "Maria Teresa Santos", scannedAt: "2026-06-07T08:35:00Z" },
+                  { memberId: "mock_3", name: "Danilo Perez", scannedAt: "2026-06-07T08:42:00Z" }
+                ]);
+              }
             } else {
-              if (active) setPresentMembers([]);
+              if (active) {
+                setPresentMembers([]);
+                setScans([]);
+              }
             }
           }
         } else {
@@ -96,9 +120,12 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
           });
           if (!active) return;
           if (snapshot && snapshot.exists()) {
-            setPresentMembers(snapshot.data().presentMembers || []);
+            const data = snapshot.data();
+            setPresentMembers(data.presentMembers || []);
+            setScans(data.scans || []);
           } else {
             setPresentMembers([]);
+            setScans([]);
           }
         }
       } catch (err) {
@@ -113,6 +140,187 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
       active = false;
     };
   }, [selectedEventId]);
+
+  // QR Code Terminal Scan Handlers
+  const handleQrCodeScanned = async (decodedText: string) => {
+    // 1. Validate the code format
+    const prefix = "scoc-member-id:";
+    if (!decodedText.startsWith(prefix)) {
+      setLastScannedResult({
+        name: "Unknown / Invalid Pass",
+        time: new Date().toLocaleTimeString(),
+        status: "error",
+        errorMsg: "Form-factor mismatch: Scanned code is not an authorized SCOC member check-in pass."
+      });
+      setToast({
+        message: "Check-in notice: Invalid security token scan.",
+        type: "error"
+      });
+      return;
+    }
+
+    const memberId = decodedText.slice(prefix.length);
+    const member = members.find(m => m.id === memberId);
+
+    if (!member) {
+      setLastScannedResult({
+        name: "Unregistered Profile",
+        time: new Date().toLocaleTimeString(),
+        status: "error",
+        errorMsg: `Security trace failed: ID ${memberId} is not registered in church registry database.`
+      });
+      setToast({
+        message: "Check-in failed: No profile matching scanned ID.",
+        type: "error"
+      });
+      return;
+    }
+
+    const name = `${member.firstName} ${member.lastName}`;
+    const nowTime = new Date().toLocaleTimeString();
+
+    // 2. Prevent duplicates
+    if (presentMembers.includes(memberId)) {
+      const existingScan = scans.find(s => s.memberId === memberId);
+      const displayTime = existingScan ? new Date(existingScan.scannedAt).toLocaleTimeString() : nowTime;
+      
+      setLastScannedResult({
+        name,
+        time: displayTime,
+        status: "duplicate",
+        errorMsg: `${name} has already scanned in on this event today.`
+      });
+      setToast({
+        message: `${name} is already logged present today.`,
+        type: "info"
+      });
+      return;
+    }
+
+    // 3. Record attendance
+    const newScanLog = {
+      memberId,
+      name,
+      scannedAt: new Date().toISOString()
+    };
+
+    const updatedPresent = [...presentMembers, memberId];
+    const updatedScans = [newScanLog, ...scans];
+
+    setPresentMembers(updatedPresent);
+    setScans(updatedScans);
+
+    setLastScannedResult({
+      name,
+      time: nowTime,
+      status: "success"
+    });
+
+    setToast({
+      message: `Checked-in: ${name} logged Present successfully!`,
+      type: "success"
+    });
+
+    // 4. Save to DB automatically in real time!
+    try {
+      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+        const payload = {
+          eventId: selectedEventId,
+          presentMembers: updatedPresent,
+          scans: updatedScans,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(`scoc_sandbox_attendance_${selectedEventId}`, JSON.stringify(payload));
+        
+        // Audit trail
+        const rawLogs = localStorage.getItem("scoc_auditLogs") || "[]";
+        let logs = [];
+        try { logs = JSON.parse(rawLogs); } catch (e) {}
+        logs.unshift({
+          id: `log_${Date.now()}`,
+          userEmail: "scoc2911@gmail.com",
+          userName: "SCOC Sandbox Admin",
+          action: `Automated scan check-in logged for ${name} using SCOC verification pass`,
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem("scoc_auditLogs", JSON.stringify(logs));
+      } else {
+        const attendanceDocRef = doc(db, "attendance", selectedEventId);
+        await setDoc(attendanceDocRef, {
+          eventId: selectedEventId,
+          presentMembers: updatedPresent,
+          scans: updatedScans,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    } catch (e) {
+      console.error("Failed to save real-time scan attendance:", e);
+    }
+  };
+
+  // Live Camera stream scanner hook
+  useEffect(() => {
+    if (currentTab === "qr_scanner" && !useUploadInstead) {
+      let html5QrCode: any = null;
+      
+      // Dynamic import to prevent SSR build crashes
+      import("html5-qrcode").then(({ Html5Qrcode }) => {
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 15, qrbox: { width: 220, height: 220 } };
+
+        html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText: string) => {
+            handleQrCodeScanned(decodedText);
+          },
+          () => {}
+        ).catch((err: any) => {
+          console.warn("Express Reader start blocked/blocked camera:", err);
+        });
+      });
+
+      return () => {
+        if (html5QrCode) {
+          try {
+            if (html5QrCode.isScanning) {
+              html5QrCode.stop().then(() => {
+                html5QrCode.clear();
+              }).catch((e: any) => console.error(e));
+            }
+          } catch(e) {}
+        }
+      };
+    }
+  }, [currentTab, useUploadInstead]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      import("html5-qrcode").then(({ Html5Qrcode }) => {
+        const html5QrCode = new Html5Qrcode("reader-file-uploader-temp");
+        html5QrCode.scanFile(file, true)
+          .then((decodedText) => {
+            handleQrCodeScanned(decodedText);
+          })
+          .catch((err) => {
+            console.error(err);
+            setToast({
+              message: "Check-in notice: QR-decoder could not capture barcode in file. Try a direct crisp scanner pass.",
+              type: "error"
+            });
+          });
+      });
+    }
+  };
+
+  const handleSimulateScan = (memberId: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+    const simulatedResponseText = member.qrCode || `scoc-member-id:${member.id}`;
+    handleQrCodeScanned(simulatedResponseText);
+  };
 
   const handleToggleAttendance = (memberId: string) => {
     if (role !== "admin") return;
@@ -538,6 +746,15 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
                           return filterNetwork && filterMinistry;
                         }).length})
                       </button>
+                      <button
+                        onClick={() => setCurrentTab("qr_scanner")}
+                        className={`px-3 py-1.5 rounded-md cursor-pointer transition flex items-center gap-1.5 border border-indigo-200/50 ${
+                          currentTab === "qr_scanner" ? "bg-indigo-600 text-white shadow-xs" : "text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/40"
+                        }`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>📷 Express Scan ({scans.length})</span>
+                      </button>
                     </div>
 
                     {role === "admin" && (
@@ -564,6 +781,200 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
 
                 {isLoading ? (
                   <div className="p-16 text-center text-sm text-gray-400">Loading attendance sheet...</div>
+                ) : currentTab === "qr_scanner" ? (
+                  /* Live QR Barcode Scanning Station Views */
+                  <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Left Column: Interactive QR Scanner Stream */}
+                      <div className="bg-indigo-950/5 border border-indigo-200/40 rounded-2xl p-5 shadow-inner flex flex-col items-center justify-center space-y-4 text-center">
+                        <div className="space-y-1">
+                          <h4 className="text-base font-extrabold text-gray-900">Entrance QR Reader Terminal</h4>
+                          <p className="text-xs text-gray-400">Position the church member pass QR code inside the camera focus</p>
+                        </div>
+
+                        {/* Tab Selector inside Scanner Box: Cámara Live vs Image file upload */}
+                        <div className="flex bg-gray-100 p-0.5 rounded-lg text-[10px] uppercase tracking-wide font-extrabold shadow-sm border border-gray-200/60">
+                          <button
+                            onClick={() => setUseUploadInstead(false)}
+                            className={`px-3 py-1 rounded-md cursor-pointer transition ${
+                              !useUploadInstead ? "bg-indigo-600 text-white" : "text-gray-500 hover:text-gray-700"
+                            }`}
+                          >
+                            Live Camera
+                          </button>
+                          <button
+                            onClick={() => setUseUploadInstead(true)}
+                            className={`px-3 py-1 rounded-md cursor-pointer transition ${
+                              useUploadInstead ? "bg-indigo-600 text-white" : "text-gray-500 hover:text-gray-700"
+                            }`}
+                          >
+                            Upload image pass
+                          </button>
+                        </div>
+
+                        {/* Scanner view ports */}
+                        {!useUploadInstead ? (
+                          <div className="relative w-full max-w-[280px] aspect-square rounded-2xl border-4 border-indigo-600/30 overflow-hidden bg-black flex flex-col items-center justify-center p-4">
+                            {/* Corner lasers sights indicators */}
+                            <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-indigo-400 z-20" />
+                            <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-indigo-400 z-20" />
+                            <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-indigo-400 z-20" />
+                            <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-indigo-400 z-20" />
+                            
+                            {/* Animated laser line */}
+                            <div className="absolute top-0 inset-x-0 h-0.5 bg-indigo-500 animate-[bounce_2s_infinite] shadow-[0_0_8px_rgba(99,102,241,0.8)] z-10" />
+
+                            <div id="reader" className="w-full h-full object-cover rounded-xl" />
+                            
+                            {/* Camera Instigating status description */}
+                            <div className="absolute inset-0 z-0 flex flex-col items-center justify-center text-gray-500 p-4 text-center space-y-2 pointer-events-none">
+                              <QrCode className="w-8 h-8 text-indigo-400/80 animate-pulse" />
+                              <p className="text-[10px] text-gray-400 font-bold">Activating Secure Stream Feed...</p>
+                              <p className="text-[9px] text-gray-500 max-w-[180px]">If browser stream does not trigger, please toggle to &quot;Upload image pass&quot; or simulate scans on the right panel!</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full max-w-[280px] aspect-square rounded-2xl border-2 border-dashed border-indigo-300 hover:border-indigo-400 transition bg-indigo-50/20 flex flex-col items-center justify-center p-6 relative cursor-pointer font-sans">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleFileChange}
+                              className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                            />
+                            <Download className="w-8 h-8 text-indigo-500 mb-2.5 animate-bounce" />
+                            <span className="text-xs font-bold text-gray-700">Drag & Drop Image Pass</span>
+                            <span className="text-[10px] text-gray-400 mt-1">or click to browse local files</span>
+                            <div id="reader-file-uploader-temp" className="hidden" />
+                          </div>
+                        )}
+
+                        {/* Last scanned visual HUD */}
+                        {lastScannedResult && (
+                          <div className={`w-full max-w-[280px] p-3 rounded-xl border flex items-start gap-2.5 text-left animate-in fade-in slide-in-from-top-1 ${
+                            lastScannedResult.status === "success"
+                              ? "bg-emerald-50 border-emerald-150 text-emerald-800"
+                              : lastScannedResult.status === "duplicate"
+                                ? "bg-amber-50 border-amber-150 text-amber-800"
+                                : "bg-rose-50 border-rose-150 text-rose-800"
+                          }`}>
+                            {lastScannedResult.status === "success" ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                            ) : lastScannedResult.status === "duplicate" ? (
+                              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                            )}
+                            <div className="text-[11px] leading-tight flex-1">
+                              <p className="font-bold text-gray-900">{lastScannedResult.name}</p>
+                              <p className="text-gray-550 text-[10px] mt-0.5 font-mono">Logged at {lastScannedResult.time}</p>
+                              {lastScannedResult.errorMsg && (
+                                <p className="text-rose-700 mt-1 font-semibold">{lastScannedResult.errorMsg}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Column: Simulator & Admin Trigger */}
+                      <div className="bg-white border border-gray-150 rounded-2xl p-5 flex flex-col space-y-4">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-extrabold text-indigo-900">Scan Simulator / Quick Search</h4>
+                          <p className="text-xs text-gray-450 leading-relaxed font-normal">Ensure successful testing! Use this tool to select any active member and simulate scanning their check-in pass instantly.</p>
+                        </div>
+
+                        {/* Member Selection for Simulation */}
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Type name to simulate QR pass scan..."
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="w-full pl-8.5 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+
+                          <div className="border border-gray-150 rounded-xl max-h-[190px] overflow-y-auto divide-y divide-gray-100 bg-gray-50/20">
+                            {activeMembers
+                              .filter(m => {
+                                const q = searchTerm.toLowerCase();
+                                return m.firstName.toLowerCase().includes(q) || m.lastName.toLowerCase().includes(q) || (m.membershipId && m.membershipId.toLowerCase().includes(q));
+                              })
+                              .map(m => {
+                                const isPresent = presentMembers.includes(m.id!);
+                                return (
+                                  <div key={m.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-gray-50">
+                                    <div>
+                                      <span className="font-bold text-gray-900 block leading-tight">{m.lastName}, {m.firstName}</span>
+                                      <span className="block text-[9px] text-gray-400 font-mono mt-0.5">ID: {m.membershipId || "No ID"}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleSimulateScan(m.id!)}
+                                      className={`px-3 py-1 text-[10px] font-bold rounded-lg border transition ${
+                                        isPresent
+                                          ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
+                                          : "bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border-indigo-200 cursor-pointer"
+                                      }`}
+                                    >
+                                      {isPresent ? "Checked" : "Simulate scan"}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            {activeMembers.length === 0 && (
+                              <p className="p-4 text-center text-xs text-gray-400">No active members found in database.</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reports Section: Scan history of present members */}
+                    <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                      <div className="bg-slate-100/60 px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-indigo-500 animate-pulse" />
+                          <span className="text-xs font-bold text-gray-800">Arrival live logs ({scans.length})</span>
+                        </div>
+                        <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wider border border-emerald-150">
+                          Secure realtime stream
+                        </span>
+                      </div>
+                      
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-150 text-left text-xs">
+                          <thead className="bg-gray-50/50">
+                            <tr>
+                              <th scope="col" className="px-5 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Member Name</th>
+                              <th scope="col" className="px-5 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Arrival Passcode</th>
+                              <th scope="col" className="px-5 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Entrance Date</th>
+                              <th scope="col" className="px-5 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Exact Scan Time</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {scans.map((s, idx) => {
+                              const sDate = s.scannedAt ? new Date(s.scannedAt) : new Date();
+                              return (
+                                <tr key={idx} className="hover:bg-indigo-50/10">
+                                  <td className="px-5 py-2 whitespace-nowrap font-bold text-gray-900">{s.name}</td>
+                                  <td className="px-5 py-2 whitespace-nowrap font-mono text-[9px] text-indigo-500 font-bold uppercase tracking-wide">scoc-chk-{s.memberId}</td>
+                                  <td className="px-5 py-2 whitespace-nowrap text-gray-500">{sDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+                                  <td className="px-5 py-2 whitespace-nowrap font-mono text-[10px] text-emerald-600 font-extrabold">{sDate.toLocaleTimeString("en-US")}</td>
+                                </tr>
+                              );
+                            })}
+                            {scans.length === 0 && (
+                              <tr>
+                                <td colSpan={4} className="p-8 text-center text-xs text-gray-400 italic">
+                                  Waiting for arrival records. Use direct camera scanning, drag local QR images, or simulate scan actions above.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-150">
