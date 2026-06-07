@@ -1,5 +1,17 @@
 import React, { useState, useRef } from "react";
 import { Member, Network, Ministry } from "@/lib/api";
+import { 
+  User, 
+  Phone, 
+  GraduationCap, 
+  Church, 
+  Droplet, 
+  Users, 
+  Handshake, 
+  Search, 
+  X,
+  Award
+} from "lucide-react";
 import { generateBaptismalCertificate } from "@/lib/certificateGen";
 import { yearLevels, collegeCourses, graduateCourses } from "@/lib/educationData";
 
@@ -251,14 +263,14 @@ export function MemberForm({
     onSubmit(finalData as Omit<Member, "id" | "createdAt" | "updatedAt">);
   };
 
-  const tabItems: { id: TabType; label: string; count?: string }[] = [
-    { id: "personal", label: "👦 Personal Info" },
-    { id: "contact", label: "📞 Contact Info" },
-    { id: "education", label: "🎓 Education Background" },
-    { id: "church", label: "⛪ Church Info" },
-    { id: "baptism", label: "💧 Baptism Information" },
-    { id: "family", label: "👨‍👩‍👧 Family Information" },
-    { id: "ministry", label: "🤝 Ministry Involvement" }
+  const tabItems: { id: TabType; label: string; icon: React.ComponentType<any> }[] = [
+    { id: "personal", label: "Personal Info", icon: User },
+    { id: "contact", label: "Contact Info", icon: Phone },
+    { id: "education", label: "Education Background", icon: GraduationCap },
+    { id: "church", label: "Church Info", icon: Church },
+    { id: "baptism", label: "Baptism Information", icon: Droplet },
+    { id: "family", label: "Family Information", icon: Users },
+    { id: "ministry", label: "Ministry Involvement", icon: Handshake }
   ];
 
   return (
@@ -304,18 +316,22 @@ export function MemberForm({
           <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block px-2.5 pb-1">RECORD SECTIONS</span>
           {tabItems.map((tab) => {
             const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full text-left px-3 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-between border ${
+                className={`w-full text-left px-3 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-between border cursor-pointer ${
                   isActive
                     ? "bg-blue-50 text-[#1E3A8A] border-blue-200/60 shadow-xs"
                     : "text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-50 border-transparent"
                 }`}
               >
-                <span>{tab.label}</span>
+                <div className="flex items-center gap-2.5">
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#1E3A8A]" : "text-gray-400"}`} strokeWidth={2.2} />
+                  <span>{tab.label}</span>
+                </div>
                 {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[#1E3A8A]" />}
               </button>
             );
@@ -328,8 +344,20 @@ export function MemberForm({
         
         <div className="space-y-6">
           <div className="border-b border-gray-100 pb-3">
-            <h4 className="text-sm font-extrabold text-[#1E3A8A] uppercase tracking-widest">
-              {tabItems.find((t) => t.id === activeTab)?.label.split(" ").slice(1).join(" ")}
+            <h4 className="text-sm font-extrabold text-[#1E3A8A] uppercase tracking-widest flex items-center gap-2">
+              {(() => {
+                const item = tabItems.find((t) => t.id === activeTab);
+                if (item) {
+                  const HeaderIcon = item.icon;
+                  return (
+                    <>
+                      <HeaderIcon className="w-4.5 h-4.5 text-[#1E3A8A]" strokeWidth={2.5} />
+                      {item.label}
+                    </>
+                  );
+                }
+                return "";
+              })()}
             </h4>
             <p className="text-xs text-gray-400 mt-0.5 font-medium">Please supply accurate system metadata below.</p>
           </div>
@@ -712,9 +740,9 @@ export function MemberForm({
                   <button
                     type="button"
                     onClick={() => setIsNetworkSelectionOpen(true)}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-bold bg-white hover:bg-blue-50 shadow-xs border border-gray-200 px-3 py-1.5 rounded-lg transition"
+                    className="text-xs text-blue-600 hover:text-blue-800 font-bold bg-white hover:bg-blue-50 shadow-3xs border border-gray-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
                   >
-                    🔍 SELECT FROM LIST
+                    <Search className="w-3.5 h-3.5" strokeWidth={2.2} /> Select from List
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -749,9 +777,9 @@ export function MemberForm({
                   <button
                     type="button"
                     onClick={() => setIsMinistrySelectionOpen(true)}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-white hover:bg-slate-50 shadow-xs border border-gray-200 px-3 py-1.5 rounded-lg transition"
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-white hover:bg-slate-50 shadow-3xs border border-gray-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
                   >
-                    🔍 SELECT FROM LIST
+                    <Search className="w-3.5 h-3.5" strokeWidth={2.2} /> Select from List
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -796,9 +824,9 @@ export function MemberForm({
                 <button
                   type="button"
                   onClick={() => setIsNetworkSelectionOpen(false)}
-                  className="text-white hover:text-blue-200 font-bold text-sm leading-none p-1 bg-transparent border-none"
+                  className="text-white hover:text-blue-200 transition p-1.5 bg-transparent border-none cursor-pointer flex items-center justify-center rounded-lg hover:bg-white/10"
                 >
-                  ✕
+                  <X className="w-4 h-4" strokeWidth={2.5} />
                 </button>
               </div>
               <div className="p-3 overflow-y-auto space-y-2 max-h-[450px]">
@@ -874,9 +902,9 @@ export function MemberForm({
                 <button
                   type="button"
                   onClick={() => setIsMinistrySelectionOpen(false)}
-                  className="text-white hover:text-blue-200 font-bold text-sm leading-none p-1 bg-transparent border-none"
+                  className="text-white hover:text-blue-200 transition p-1.5 bg-transparent border-none cursor-pointer flex items-center justify-center rounded-lg hover:bg-white/10"
                 >
-                  ✕
+                  <X className="w-4 h-4" strokeWidth={2.5} />
                 </button>
               </div>
               <div className="p-3 overflow-y-auto space-y-2 max-h-[450px]">
@@ -947,9 +975,9 @@ export function MemberForm({
               <button
                 type="button"
                 onClick={() => generateBaptismalCertificate(initialData)}
-                className="px-4 py-2 border border-amber-300 rounded-lg text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/70 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                className="px-4 py-2 border border-amber-300 rounded-lg text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/70 transition flex items-center justify-center gap-2 cursor-pointer shadow-3xs"
               >
-                📜 EXPORT WORD certificate
+                <Award className="w-4 h-4 text-amber-600 animate-pulse" strokeWidth={2} /> Export Word Certificate
               </button>
             )}
           </div>
