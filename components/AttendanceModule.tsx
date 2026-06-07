@@ -388,6 +388,16 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     const activeEvent = events.find((e) => e.id === selectedEventId);
     const eventNameStr = activeEvent?.eventName || "Worship Service";
 
+    // Prevent changing the status of a user who scanned their QR code successfully
+    const hasScanRecord = scans.some((s) => s.memberId === memberId);
+    if (hasScanRecord) {
+      setToast({
+        message: `${name} checked in via QR pass. Handshake-authenticated records cannot be modified or set to Absent.`,
+        type: "error"
+      });
+      return;
+    }
+
     let updatedPresent = [];
     let statusText = "";
     if (presentMembers.includes(memberId)) {
@@ -466,8 +476,11 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     let updatedPresent = [];
     let statusText = "";
     if (containsAll) {
-      // Uncheck only the filtered ones
-      updatedPresent = presentMembers.filter(id => !filteredIds.includes(id));
+      // Uncheck only the filtered ones but STRICTLY preserve scanned present members
+      updatedPresent = presentMembers.filter(id => {
+        const hasScanRecord = scans.some(s => s.memberId === id);
+        return !filteredIds.includes(id) || hasScanRecord;
+      });
       statusText = "Absent";
     } else {
       // Add only the filtered ones
@@ -544,6 +557,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
         const payload = {
           eventId: selectedEventId,
           presentMembers,
+          scans,
           updatedAt: new Date().toISOString(),
         };
         localStorage.setItem(`scoc_sandbox_attendance_${selectedEventId}`, JSON.stringify(payload));
@@ -570,6 +584,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
         await setDoc(attendanceDocRef, {
           eventId: selectedEventId,
           presentMembers,
+          scans,
           updatedAt: serverTimestamp(),
         }).catch((err) => {
           handleFirestoreError(err, OperationType.WRITE, `attendance/${selectedEventId}`);
