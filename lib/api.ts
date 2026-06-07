@@ -291,9 +291,19 @@ export const subscribeToMyProfile = (email: string, callback: (member: Member | 
     return () => {};
   }
 
+  const normalized = email.trim();
+  const lower = normalized.toLowerCase();
+  const upper = normalized.toUpperCase();
+  const parts = normalized.split("@");
+  const capitalized = parts.length > 1
+    ? `${parts[0].charAt(0).toUpperCase()}${parts[0].slice(1).toLowerCase()}@${parts[1].toLowerCase()}`
+    : normalized;
+
+  const emailVariants = Array.from(new Set([normalized, lower, upper, capitalized]));
+
   const q = query(
     collection(db, "members"),
-    where("email", "==", email.trim())
+    where("email", "in", emailVariants)
   );
   return onSnapshot(
     q,
@@ -409,7 +419,11 @@ export const createMember = async (memberData: Omit<Member, "id" | "createdAt" |
   }
 
   try {
-    const sanitized = sanitizeData(memberData);
+    const finalMemberData = {
+      ...memberData,
+      email: memberData.email ? memberData.email.toLowerCase().trim() : "",
+    };
+    const sanitized = sanitizeData(finalMemberData);
     const newDocRef = doc(collection(db, "members"));
     await setDoc(newDocRef, {
       ...sanitized,
@@ -451,6 +465,9 @@ export const updateMember = async (id: string, memberData: Partial<Member>) => {
     const memberDoc = doc(db, "members", id);
     // Exclude id and createdAt from update
     const { id: _, createdAt, ...updateData } = memberData;
+    if (updateData.email) {
+      updateData.email = updateData.email.toLowerCase().trim();
+    }
     const sanitized = sanitizeData(updateData);
     await setDoc(
       memberDoc,

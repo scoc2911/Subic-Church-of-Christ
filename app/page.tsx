@@ -62,7 +62,8 @@ import {
   Edit3,
   Pencil,
   Trash2,
-  Clock
+  Clock,
+  Link as LinkIcon
 } from "lucide-react";
 
 type ActiveTab = 
@@ -1202,6 +1203,33 @@ export default function Home() {
                       className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white text-xs font-black rounded-lg hover:bg-blue-700 transition uppercase tracking-wider cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
                     >
                       <Pencil className="w-3.5 h-3.5" strokeWidth={2} /> Edit Existing Member
+                    </button>
+                  )}
+                  {activeRole !== "admin" && duplicateMatch && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm(`Are you sure you want to link your signed-in account (${user?.email}) to this existing member profile of "${duplicateMatch.firstName} ${duplicateMatch.lastName}"?\n\nOnce linked, this profile data will be loaded automatically.`)) {
+                          try {
+                            setIsSaving(true);
+                            setIsDuplicateWarningOpen(false);
+                            await updateMember(duplicateMatch.id!, {
+                              email: user?.email || ""
+                            });
+                            alert("Your account has been successfully linked to this member profile.");
+                            setDuplicateMatch(null);
+                          } catch (err) {
+                            console.error("Linking error:", err);
+                            alert("Failed to link account. Please contact SCOC administration if issue persists.");
+                          } finally {
+                            setIsSaving(false);
+                          }
+                        }
+                      }}
+                      disabled={isSaving}
+                      className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 disabled:opacity-50 text-white text-xs font-black rounded-lg hover:bg-blue-700 transition uppercase tracking-wider cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      <LinkIcon className="w-3.5 h-3.5" strokeWidth={2} /> Correct, Link My Account
                     </button>
                   )}
                 </div>
