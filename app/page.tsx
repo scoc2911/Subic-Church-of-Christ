@@ -24,13 +24,6 @@ import { MemberForm, calculateAge } from "@/components/MemberForm";
 import { Logo } from "@/components/Logo";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import * as Dialog from "@radix-ui/react-dialog";
-import { 
-  PlusIcon, 
-  Pencil1Icon, 
-  TrashIcon, 
-  CalendarIcon, 
-  ClockIcon 
-} from "@radix-ui/react-icons";
 
 // Premium Module Imports
 import { DashboardModule } from "@/components/DashboardModule";
@@ -66,7 +59,10 @@ import {
   MapPin,
   GraduationCap,
   Heart,
-  Edit3
+  Edit3,
+  Pencil,
+  Trash2,
+  Clock
 } from "lucide-react";
 
 type ActiveTab = 
@@ -898,13 +894,19 @@ export default function Home() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-xs font-bold transition-all border outline-none cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all border outline-none cursor-pointer ${
                     isActive
-                      ? "bg-blue-50/70 border-blue-100 text-blue-700 shadow-2xs"
-                      : "bg-transparent border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                      ? "bg-blue-50/70 border-blue-100 text-blue-700 shadow-3xs"
+                      : "bg-transparent border-transparent text-gray-600 hover:text-gray-950 hover:bg-gray-50/80"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
+                  <div className={`p-1.5 rounded-lg flex items-center justify-center transition-all ${
+                    isActive 
+                      ? "bg-blue-600 text-white shadow-xs" 
+                      : "bg-gray-100 text-gray-500 border border-gray-150/60"
+                  }`}>
+                    <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
+                  </div>
                   {item.label}
                 </button>
               );
@@ -967,13 +969,19 @@ export default function Home() {
                     setActiveTab(item.id);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-bold cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer border transition-all ${
                     isActive
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-600 hover:bg-gray-50"
+                      ? "bg-blue-600 text-white border-blue-650 shadow-xs"
+                      : "text-gray-600 hover:bg-gray-50/80 border-transparent"
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
+                  <div className={`p-1.5 rounded-lg flex items-center justify-center transition-all ${
+                    isActive 
+                      ? "bg-blue-700 text-white" 
+                      : "bg-gray-100 text-gray-500 border border-gray-150"
+                  }`}>
+                    <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
+                  </div>
                   {item.label}
                 </button>
               );
@@ -1193,7 +1201,7 @@ export default function Home() {
                       }}
                       className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white text-xs font-black rounded-lg hover:bg-blue-700 transition uppercase tracking-wider cursor-pointer text-center shadow-md flex items-center justify-center gap-1.5"
                     >
-                      ✏️ Edit Existing Member
+                      <Pencil className="w-3.5 h-3.5" strokeWidth={2} /> Edit Existing Member
                     </button>
                   )}
                 </div>
@@ -1270,8 +1278,8 @@ export default function Home() {
                       <div key={evt.id} className={`flex items-center justify-between p-3.5 hover:bg-gray-50/50 transition-colors ${countdown.passed ? 'opacity-60' : ''}`}>
                         <div className="flex-1 text-left">
                           <p className="text-sm font-bold text-gray-900 leading-tight">{evt.eventName}</p>
-                          <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1 mt-1 uppercase tracking-wide">
-                            <ClockIcon className="w-3.5 h-3.5 text-gray-400" />
+                          <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1.5 mt-1 uppercase tracking-wide">
+                            <Clock className="w-3.5 h-3.5 text-gray-400" strokeWidth={2} />
                             {new Date(evt.eventDate).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
@@ -1291,7 +1299,7 @@ export default function Home() {
                             className="text-blue-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded-lg transition border-none bg-transparent cursor-pointer"
                             title="Edit Event"
                           >
-                            <Pencil1Icon className="h-4.5 w-4.5" />
+                            <Pencil className="h-4 w-4" strokeWidth={2} />
                           </button>
                           <button
                             type="button"
@@ -1299,7 +1307,7 @@ export default function Home() {
                             className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition border-none bg-transparent cursor-pointer"
                             title="Delete Event"
                           >
-                            <TrashIcon className="h-4.5 w-4.5" />
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
                           </button>
                         </div>
                       </div>
