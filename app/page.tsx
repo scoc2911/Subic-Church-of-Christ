@@ -108,6 +108,10 @@ export const dynamic = "force-dynamic";
 export default function Home() {
   const { user, role, loading, isLoggingIn, loginError, login, logout, isSandbox } = useAuth();
   
+  // Admin role simulation state to allow seamless testing of Viewer & Guest profile views
+  const [simulatedRole, setSimulatedRole] = useState<"admin" | "viewer" | "guest" | null>(null);
+  const activeRole = simulatedRole || role;
+
   // Real-time Firestore Subscribed States
   const [members, setMembers] = useState<Member[]>([]);
   const [networks, setNetworks] = useState<Network[]>([]);
@@ -148,7 +152,7 @@ export default function Home() {
 
   // Subscriptions hooks
   useEffect(() => {
-    if (user && role === "admin") {
+    if (user && activeRole === "admin") {
       const unsubscribe = subscribeToMembers((data) => {
         setMembers(data);
 
@@ -169,28 +173,28 @@ export default function Home() {
       });
       return () => unsubscribe();
     }
-  }, [user, role]);
+  }, [user, activeRole]);
 
   useEffect(() => {
-    if (user && role) {
+    if (user && activeRole) {
       const unsubscribe = subscribeToNetworks((data) => {
         setNetworks(data);
       });
       return () => unsubscribe();
     }
-  }, [user, role]);
+  }, [user, activeRole]);
 
   useEffect(() => {
-    if (user && role) {
+    if (user && activeRole) {
       const unsubscribe = subscribeToMinistries((data) => {
         setMinistries(data);
       });
       return () => unsubscribe();
     }
-  }, [user, role]);
+  }, [user, activeRole]);
 
   useEffect(() => {
-    if (user && user.email && (role === "viewer" || role === "guest")) {
+    if (user && user.email && (activeRole === "viewer" || activeRole === "guest")) {
       setIsLoadingProfile(true);
       const unsubscribe = subscribeToMyProfile(user.email, (data) => {
         setMyProfile(data);
@@ -200,16 +204,16 @@ export default function Home() {
     } else {
       setIsLoadingProfile(false);
     }
-  }, [user, role]);
+  }, [user, activeRole]);
 
   useEffect(() => {
-    if (user && role === "admin") {
+    if (user && activeRole === "admin") {
       const unsubscribe = subscribeToEvents((data) => {
         setEvents(data);
       });
       return () => unsubscribe();
     }
-  }, [user, role]);
+  }, [user, activeRole]);
 
   // Auth gate checks
   if (loading) {
@@ -343,8 +347,70 @@ export default function Home() {
     );
   }
 
-  if (role === "viewer" || role === "guest") {
-    const displayRole = role === "viewer" ? "Viewer (Read-Only)" : "Guest";
+  const renderSimulationBar = () => {
+    if (role !== "admin") return null;
+    return (
+      <div className="bg-amber-50 border-b border-amber-200 py-2.5 px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shrink-0 select-none print:hidden">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="font-extrabold text-amber-950 uppercase tracking-wider text-[10px]">
+            Administrator Simulation Mode
+          </span>
+          <span className="text-gray-400 font-medium">|</span>
+          <span className="text-gray-600 font-semibold">
+            Actively viewing workspace as: <span className="font-black text-blue-700 uppercase bg-blue-100/60 px-1.5 py-0.5 rounded">{simulatedRole || "admin"}</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-amber-200 shadow-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setSimulatedRole(null);
+              setIsEditingMyProfile(false);
+            }}
+            className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider transition-all rounded-md cursor-pointer ${
+              !simulatedRole
+                ? "bg-amber-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            Admin View
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSimulatedRole("viewer");
+              setIsEditingMyProfile(false);
+            }}
+            className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider transition-all rounded-md cursor-pointer ${
+              simulatedRole === "viewer"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            }`}
+          >
+            Viewer (Read-Only)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSimulatedRole("guest");
+              setIsEditingMyProfile(false);
+            }}
+            className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider transition-all rounded-md cursor-pointer ${
+              simulatedRole === "guest"
+                ? "bg-purple-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            }`}
+          >
+            Guest View
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  if (activeRole === "viewer" || activeRole === "guest") {
+    const displayRole = activeRole === "viewer" ? "Viewer (Read-Only)" : "Guest";
 
     const handleMyProfileUpdate = async (data: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
       if (!myProfile?.id) return;
@@ -412,7 +478,8 @@ export default function Home() {
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
+      <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 animate-in fade-in duration-200">
+        {renderSimulationBar()}
         {/* Workspace Portal Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-xs select-none">
           <div className="flex items-center gap-3">
@@ -653,7 +720,7 @@ export default function Home() {
     );
   }
 
-  if (role !== "admin") {
+  if (activeRole !== "admin") {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 p-4 flex-col gap-4">
         <div className="bg-orange-100 text-orange-600 rounded-full h-16 w-16 flex items-center justify-center mb-2 shadow-inner">
@@ -801,7 +868,9 @@ export default function Home() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row print:bg-white text-gray-800">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {renderSimulationBar()}
+      <div className="flex-1 flex flex-col md:flex-row print:bg-white text-gray-800">
       
       {/* SIDEBAR NAVIGATION PANEL (Desktop) */}
       <aside className="w-68 bg-white border-r border-gray-150 flex-col justify-between hidden md:flex shrink-0 print:hidden select-none">
@@ -822,7 +891,7 @@ export default function Home() {
           {/* Nav Items Link List */}
           <nav className="p-4 space-y-1">
             {menuItems.map((item) => {
-              if (item.adminOnly && role !== "admin") return null;
+              if (item.adminOnly && activeRole !== "admin") return null;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -888,7 +957,7 @@ export default function Home() {
         <div className="fixed inset-0 top-16 bg-gray-950/20 backdrop-blur-xs z-50 md:hidden flex flex-col justify-start print:hidden">
           <div className="bg-white border-b border-gray-200 py-3.5 px-4 space-y-1 animate-slide-down">
             {menuItems.map((item) => {
-              if (item.adminOnly && role !== "admin") return null;
+              if (item.adminOnly && activeRole !== "admin") return null;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -932,7 +1001,7 @@ export default function Home() {
             events={events}
             ministries={ministries}
             networks={networks}
-            role={role}
+            role={activeRole}
             onNavigate={(view) => setActiveTab(view)}
             onOpenQuickAdd={() => {
               setEditingMember(undefined);
@@ -947,7 +1016,7 @@ export default function Home() {
             members={members}
             networks={networks}
             ministries={ministries}
-            role={role}
+            role={activeRole}
             onAddMemberClick={() => {
               setEditingMember(undefined);
               setIsFormModalOpen(true);
@@ -963,7 +1032,7 @@ export default function Home() {
         {activeTab === "baptisms" && (
           <BaptismRecordsModule
             members={members}
-            role={role}
+            role={activeRole}
           />
         )}
 
@@ -971,7 +1040,7 @@ export default function Home() {
           <AttendanceModule
             members={members}
             events={events}
-            role={role}
+            role={activeRole}
           />
         )}
 
@@ -981,7 +1050,7 @@ export default function Home() {
           />
         )}
 
-        {activeTab === "ministries" && role === "admin" && (
+        {activeTab === "ministries" && activeRole === "admin" && (
           <div className="space-y-6">
             <div className="border-b border-gray-150 pb-3">
               <h2 className="text-xl font-bold text-gray-900">Manage Ministries</h2>
@@ -995,7 +1064,7 @@ export default function Home() {
           </div>
         )}
 
-        {activeTab === "networks" && role === "admin" && (
+        {activeTab === "networks" && activeRole === "admin" && (
           <div className="space-y-6">
             <div className="border-b border-gray-150 pb-3">
               <h2 className="text-xl font-bold text-gray-900">Manage Cell Networks</h2>
@@ -1009,13 +1078,13 @@ export default function Home() {
           </div>
         )}
 
-        {activeTab === "users" && role === "admin" && (
+        {activeTab === "users" && activeRole === "admin" && (
           <UserManagementModule
             currentAdminEmail="scoc2911@gmail.com"
           />
         )}
 
-        {activeTab === "settings" && role === "admin" && (
+        {activeTab === "settings" && activeRole === "admin" && (
           <SystemSettingsModule />
         )}
 
@@ -1265,6 +1334,7 @@ export default function Home() {
           onConfirm={confirmConfig.onConfirm}
         />
       </main>
+      </div>
     </div>
   );
 }
