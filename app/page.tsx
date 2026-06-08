@@ -193,8 +193,11 @@ export default function Home() {
   }, [user, activeRole]);
 
   useEffect(() => {
-    if (user && user.email && (activeRole === "viewer" || activeRole === "guest")) {
-      setIsLoadingProfile(true);
+    if (user && user.email) {
+      const isSelfProfileRequired = activeRole === "viewer" || activeRole === "guest";
+      if (isSelfProfileRequired) {
+        setIsLoadingProfile(true);
+      }
       const unsubscribe = subscribeToMyProfile(user.email, (data) => {
         setMyProfile(data);
         setIsLoadingProfile(false);
@@ -522,10 +525,22 @@ export default function Home() {
             {/* Header Welcome Card */}
             <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
               <div className="flex flex-col md:flex-row items-center gap-4 md:text-left text-center">
-                <div className="h-20 w-20 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-black text-3xl shadow-sm uppercase">
-                  {myProfile.firstName.slice(0, 1)}
-                  {myProfile.lastName.slice(0, 1)}
-                </div>
+                {myProfile.pictures && myProfile.pictures[0] ? (
+                  <div className="h-20 w-20 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={myProfile.pictures[0]}
+                      alt="Profile Picture"
+                      className="h-full w-full object-cover font-sans text-xs"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-20 w-20 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-black text-3xl shadow-sm uppercase shrink-0 font-sans">
+                    {myProfile.firstName.slice(0, 1)}
+                    {myProfile.lastName.slice(0, 1)}
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                     <h2 className="text-xl font-black text-gray-950 tracking-tight leading-none uppercase">
@@ -921,9 +936,21 @@ export default function Home() {
         {/* User Identity Panel */}
         <div className="p-4 border-t border-gray-100 space-y-3 bg-gray-50/50">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs rounded-full border border-blue-200">
-              {user.displayName?.[0] || user.email?.[0] || "U"}
-            </div>
+            {myProfile?.pictures && myProfile.pictures[0] ? (
+              <div className="h-9 w-9 rounded-full border border-gray-250 shadow-2xs relative overflow-hidden shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={myProfile.pictures[0]}
+                  alt="Avatar"
+                  className="h-full w-full object-cover font-sans text-xs"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            ) : (
+              <div className="h-9 w-9 bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs rounded-full border border-blue-200 shrink-0 font-sans">
+                {user.displayName?.[0] || user.email?.[0] || "U"}
+              </div>
+            )}
             <div className="truncate flex-1">
               <span className="text-xs font-black text-gray-950 leading-tight block truncate">
                 {user.displayName || user.email?.split("@")[0]}
@@ -991,10 +1018,27 @@ export default function Home() {
               );
             })}
             <div className="pt-3.5 mt-3 border-t border-gray-100 flex items-center justify-between gap-4">
-              <span className="text-[10px] text-gray-400 font-bold uppercase truncate">{user.email}</span>
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                {myProfile?.pictures && myProfile.pictures[0] ? (
+                  <div className="h-7 w-7 rounded-full border border-gray-250 relative overflow-hidden shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={myProfile.pictures[0]}
+                      alt="Avatar"
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-7 w-7 bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-[10px] rounded-full border border-blue-200 shrink-0 uppercase font-sans">
+                    {user.displayName?.[0] || user.email?.[0] || "U"}
+                  </div>
+                )}
+                <span className="text-[10px] text-gray-400 font-bold uppercase truncate">{user.email}</span>
+              </div>
               <button
                 onClick={logout}
-                className="text-orange-600 hover:underline text-xs font-bold select-none cursor-pointer"
+                className="text-orange-600 hover:underline text-xs font-bold select-none cursor-pointer shrink-0"
               >
                 Sign Out
               </button>
