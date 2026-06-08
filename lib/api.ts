@@ -91,6 +91,7 @@ const isSandboxActive = (): boolean => {
 const INITIAL_MOCK_MEMBERS: Member[] = [
   {
     id: "mock_1",
+    membershipId: "SCOC-2026-10294",
     lastName: "Santos",
     firstName: "Maria Teresa",
     middleName: "Cruz",
@@ -116,6 +117,7 @@ const INITIAL_MOCK_MEMBERS: Member[] = [
   },
   {
     id: "mock_2",
+    membershipId: "SCOC-2026-38495",
     lastName: "Dela Cruz",
     firstName: "John Michael",
     middleName: "Bautista",
@@ -141,6 +143,7 @@ const INITIAL_MOCK_MEMBERS: Member[] = [
   },
   {
     id: "mock_3",
+    membershipId: "SCOC-2026-88492",
     lastName: "Perez",
     firstName: "Danilo",
     middleName: "Gomez",
@@ -259,14 +262,27 @@ const notifyUserRoles = () => {
   userRolesCallbacks.forEach(cb => cb(data));
 };
 
+export const hashCode = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+};
+
 export const subscribeToMembers = (callback: (members: Member[]) => void) => {
   if (isSandboxActive()) {
     membersCallbacks.push(callback);
     const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
-    const membersWithQr = data.map((m) => ({
-      ...m,
-      qrCode: m.qrCode || `scoc-member-id:${m.id}`,
-    }));
+    const membersWithQr = data.map((m) => {
+      const uniqueSeedNum = 10000 + (hashCode(m.id || "0") % 90000);
+      const fallbackId = m.membershipId || `SCOC-2026-${uniqueSeedNum}`;
+      return {
+        ...m,
+        membershipId: fallbackId,
+        qrCode: m.qrCode || `scoc-member-id:${fallbackId}`,
+      };
+    });
     callback(membersWithQr);
     return () => {
       membersCallbacks = membersCallbacks.filter((cb) => cb !== callback);
@@ -278,11 +294,14 @@ export const subscribeToMembers = (callback: (members: Member[]) => void) => {
     q,
     (snapshot) => {
       const members = snapshot.docs.map((doc) => {
-        const d = serializeDoc(doc.data());
+        const d = serializeDoc(doc.data()) as Member;
+        const uniqueSeedNum = 10000 + (hashCode(doc.id || "0") % 90000);
+        const fallbackId = d.membershipId || `SCOC-2026-${uniqueSeedNum}`;
         return {
           id: doc.id,
           ...d,
-          qrCode: d.qrCode || `scoc-member-id:${doc.id}`,
+          membershipId: fallbackId,
+          qrCode: d.qrCode || `scoc-member-id:${fallbackId}`,
         };
       }) as Member[];
       callback(members);
@@ -466,13 +485,19 @@ export const checkDuplicateMember = async (
 };
 
 export const createMember = async (memberData: Omit<Member, "id" | "createdAt" | "updatedAt">) => {
+  const currentYear = new Date().getFullYear();
+  const randNum = Math.floor(10000 + Math.random() * 90000);
+  const finalMembershipId = memberData.membershipId || `SCOC-${currentYear}-${randNum}`;
+  const finalQrCode = `scoc-member-id:${finalMembershipId}`;
+
   if (isSandboxActive()) {
     const data = getSandboxData("scoc_members", INITIAL_MOCK_MEMBERS);
     const id = `mock_${Date.now()}`;
     const newMember: Member = {
       id,
       ...memberData,
-      qrCode: memberData.qrCode || `scoc-member-id:${id}`,
+      membershipId: finalMembershipId,
+      qrCode: finalQrCode,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -483,7 +508,7 @@ export const createMember = async (memberData: Omit<Member, "id" | "createdAt" |
     await createAuditLog({
       userEmail: "scoc2911@gmail.com",
       userName: "SCOC Sandbox Admin",
-      action: `Created Member Profile for ${memberData.firstName} ${memberData.lastName}`,
+      action: `Created Member Profile for ${memberData.firstName} ${memberData.lastName} (Unique ID: ${finalMembershipId})`,
     });
 
     notifyMembers();
@@ -494,8 +519,9 @@ export const createMember = async (memberData: Omit<Member, "id" | "createdAt" |
     const newDocRef = doc(collection(db, "members"));
     const finalMemberData = {
       ...memberData,
+      membershipId: finalMembershipId,
       email: memberData.email ? memberData.email.toLowerCase().trim() : "",
-      qrCode: memberData.qrCode || `scoc-member-id:${newDocRef.id}`,
+      qrCode: finalQrCode,
     };
     const sanitized = sanitizeData(finalMemberData);
     await setDoc(newDocRef, {

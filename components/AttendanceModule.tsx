@@ -49,7 +49,13 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
   // QR Check-In Terminal States
   const [scans, setScans] = useState<Array<{ memberId: string; name: string; scannedAt: string }>>([]);
   const [useUploadInstead, setUseUploadInstead] = useState(false);
-  const [lastScannedResult, setLastScannedResult] = useState<{ name: string; time: string; status: "success" | "duplicate" | "error"; errorMsg?: string } | null>(null);
+  const [lastScannedResult, setLastScannedResult] = useState<{
+    name: string;
+    time: string;
+    status: "success" | "duplicate" | "error";
+    errorMsg?: string;
+    member?: Member;
+  } | null>(null);
 
   // Active member list
   const activeMembers = members.filter(m => m.membershipStatus === "Active");
@@ -200,15 +206,18 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
       return;
     }
 
-    const memberId = decodedText.slice(prefix.length);
-    const member = members.find(m => m.id === memberId);
+    const codePayloadVal = decodedText.slice(prefix.length).trim();
+    const member = members.find(m => 
+      (m.id && m.id === codePayloadVal) || 
+      (m.membershipId && m.membershipId.toLowerCase().trim() === codePayloadVal.toLowerCase())
+    );
 
     if (!member) {
       setLastScannedResult({
         name: "Unregistered Profile",
         time: new Date().toLocaleTimeString(),
         status: "error",
-        errorMsg: `Security trace failed: ID ${memberId} is not registered in church registry database.`
+        errorMsg: `Security trace failed: ID "${codePayloadVal}" is not registered in church registry database.`
       });
       setToast({
         message: "Check-in failed: No profile matching scanned ID.",
@@ -217,6 +226,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
       return;
     }
 
+    const memberId = member.id || codePayloadVal;
     const name = `${member.firstName} ${member.lastName}`;
     const nowTime = new Date().toLocaleTimeString();
 
@@ -229,7 +239,8 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
         name,
         time: displayTime,
         status: "duplicate",
-        errorMsg: `${name} has already scanned in on this event today.`
+        errorMsg: `${name} has already scanned in on this event today.`,
+        member: member
       });
       setToast({
         message: `${name} is already logged present today.`,
@@ -254,7 +265,8 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     setLastScannedResult({
       name,
       time: nowTime,
-      status: "success"
+      status: "success",
+      member: member
     });
 
     setToast({
@@ -262,7 +274,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
       type: "success"
     });
 
-    const activeEvent = events.find(e => e.id === selectedEventId);
+    const activeEvent = events.find((e) => e.id === selectedEventId);
     const eventNameStr = activeEvent?.eventName || "Worship Service";
     const logMsg = `Check-in Success: ${name} marked Present for "${eventNameStr}" on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} (Status: Present)`;
 
@@ -1045,27 +1057,100 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
 
                         {/* Last scanned visual HUD */}
                         {lastScannedResult && (
-                          <div className={`w-full max-w-[280px] p-3 rounded-xl border flex items-start gap-2.5 text-left animate-in fade-in slide-in-from-top-1 ${
-                            lastScannedResult.status === "success"
-                              ? "bg-emerald-50 border-emerald-150 text-emerald-800"
-                              : lastScannedResult.status === "duplicate"
-                                ? "bg-amber-50 border-amber-150 text-amber-800"
-                                : "bg-rose-50 border-rose-150 text-rose-800"
-                          }`}>
-                            {lastScannedResult.status === "success" ? (
-                              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                            ) : lastScannedResult.status === "duplicate" ? (
-                              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                            )}
-                            <div className="text-[11px] leading-tight flex-1">
-                              <p className="font-bold text-gray-900">{lastScannedResult.name}</p>
-                              <p className="text-gray-550 text-[10px] mt-0.5 font-mono">Logged at {lastScannedResult.time}</p>
-                              {lastScannedResult.errorMsg && (
-                                <p className="text-rose-700 mt-1 font-semibold">{lastScannedResult.errorMsg}</p>
+                          <div className="w-full max-w-[280px] space-y-3.5">
+                            {/* Check-in result status alert */}
+                            <div className={`w-full p-3 rounded-xl border flex items-start gap-2.5 text-left animate-in fade-in slide-in-from-top-1 ${
+                              lastScannedResult.status === "success"
+                                ? "bg-emerald-50 border-emerald-150 text-emerald-800"
+                                : lastScannedResult.status === "duplicate"
+                                  ? "bg-amber-50 border-amber-150 text-amber-800"
+                                  : "bg-rose-50 border-rose-150 text-rose-800"
+                            }`}>
+                              {lastScannedResult.status === "success" ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                              ) : lastScannedResult.status === "duplicate" ? (
+                                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                               )}
+                              <div className="text-[11px] leading-tight flex-1">
+                                <p className="font-bold text-gray-900">{lastScannedResult.name}</p>
+                                <p className="text-gray-550 text-[10px] mt-0.5 font-mono">Logged at {lastScannedResult.time}</p>
+                                {lastScannedResult.status === "duplicate" ? (
+                                  <p className="text-amber-700 mt-1 font-semibold">{lastScannedResult.errorMsg}</p>
+                                ) : lastScannedResult.status === "success" ? (
+                                  <p className="text-emerald-700 mt-1 font-semibold text-[10px]">Entrance scan recorded successfully!</p>
+                                ) : (
+                                  <p className="text-rose-700 mt-1 font-semibold">{lastScannedResult.errorMsg}</p>
+                                )}
+                              </div>
                             </div>
+
+                            {/* Detailed Scanned Member Info Card */}
+                            {lastScannedResult.member && (
+                              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs text-left font-sans text-xs flex flex-col animate-fade-in">
+                                <div className="bg-gradient-to-r from-indigo-900 to-indigo-950 p-2 text-white flex items-center justify-between">
+                                  <span className="text-[9px] font-black tracking-widest uppercase">SCOC RECORDS SYSTEM</span>
+                                  <span className="text-[9px] font-mono opacity-80">{lastScannedResult.member.membershipId}</span>
+                                </div>
+                                
+                                <div className="p-3 space-y-2.5">
+                                  {/* Avatar and Name */}
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-sky-400 text-white flex items-center justify-center text-sm font-black shrink-0 shadow-xs uppercase border-2 border-indigo-50 overflow-hidden">
+                                      {lastScannedResult.member.pictures && lastScannedResult.member.pictures.length > 0 ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                          src={lastScannedResult.member.pictures[0]}
+                                          alt="Scanned Profile"
+                                          className="w-full h-full object-cover"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                      ) : (
+                                        `${lastScannedResult.member.firstName?.[0] || ""}${lastScannedResult.member.lastName?.[0] || ""}`
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h5 className="font-bold text-gray-900 truncate text-xs leading-snug">
+                                        {lastScannedResult.member.firstName} {lastScannedResult.member.lastName}
+                                      </h5>
+                                      <p className="text-[9px] text-indigo-700 font-extrabold uppercase tracking-wide">
+                                        {lastScannedResult.member.membershipStatus || "Active Member"}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Quick Info Specs */}
+                                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-[10px]">
+                                    <div className="space-y-0.5">
+                                      <p className="text-[8px] text-gray-400 font-bold uppercase">MINISTRY & DEPT</p>
+                                      <p className="font-bold text-gray-750 truncate">{lastScannedResult.member.ministry || "None Assigned"}</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <p className="text-[8px] text-gray-400 font-bold uppercase">NETWORK/LEADER</p>
+                                      <p className="font-bold text-gray-750 truncate">{lastScannedResult.member.network || "None Assigned"}</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <p className="text-[8px] text-gray-400 font-bold uppercase">CONTACT NUMBER</p>
+                                      <p className="font-mono text-gray-700 truncate">{lastScannedResult.member.contactNumber || "N/A"}</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <p className="text-[8px] text-gray-400 font-bold uppercase">AGE & GENDER</p>
+                                      <p className="font-bold text-gray-750 truncate">
+                                        {lastScannedResult.member.age || "—"} yrs • {lastScannedResult.member.gender || "—"}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-indigo-50/50 border border-indigo-100/50 p-1.5 rounded-lg flex items-center justify-between text-[9px]">
+                                    <span className="font-bold text-indigo-800 uppercase text-[8px]">Database Record ID</span>
+                                    <span className="font-mono font-bold text-indigo-900">
+                                      #{lastScannedResult.member.id?.slice(-8) || "MEMBER"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

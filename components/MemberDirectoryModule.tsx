@@ -20,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import QRCode from "qrcode";
+import { Logo } from "@/components/Logo";
 
 interface MemberDirectoryModuleProps {
   members: Member[];
@@ -343,58 +344,107 @@ export function MemberDirectoryModule({
       </div>
 
       {selectedMemberForQr && (
-        <div id="qr-modal" className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-sm w-full border border-gray-150 shadow-2xl overflow-hidden flex flex-col transform transition-all duration-300 scale-100">
+        <div id="qr-modal" className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-slate-900 rounded-3xl max-w-sm w-full border border-slate-800 shadow-2xl overflow-hidden flex flex-col transform transition-all duration-300 scale-100 font-sans text-xs">
             {/* Header */}
-            <div className="bg-indigo-900 px-5 py-4 text-white flex items-center justify-between">
+            <div className="bg-indigo-950 px-5 py-4 border-b border-slate-850 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-indigo-300" />
-                <h3 className="font-bold text-sm">Personal Check-In Pass</h3>
+                <QrCode className="w-5 h-5 text-indigo-400" />
+                <h3 className="font-extrabold text-sm tracking-tight">SCOC Digital Pass Terminal</h3>
               </div>
               <button
                 onClick={() => setSelectedMemberForQr(null)}
-                className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition border-none bg-transparent cursor-pointer"
+                className="text-white/60 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition border-none bg-transparent cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Body */}
-            <div className="p-6 text-center space-y-4">
-              <div className="space-y-1">
-                <h4 className="text-base font-bold text-gray-900">
-                  {selectedMemberForQr.firstName} {selectedMemberForQr.lastName}
-                </h4>
-                <p className="text-xs text-gray-400 font-mono">
-                  MEMBER ID: {selectedMemberForQr.membershipId || "—"}
-                </p>
-                <p className="text-[10px] text-gray-400 font-mono">
-                  UID: {selectedMemberForQr.id || "—"}
-                </p>
-              </div>
+            {/* ID Card Visual Representation Body */}
+            <div className="p-6 flex flex-col items-center justify-center bg-slate-950">
+              {/* ID Badge Frame */}
+              <div className="w-[280px] h-[450px] bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden relative text-center text-slate-850 animate-scale-up">
+                {/* Badge Header Banner */}
+                <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-3.5 text-white flex items-center justify-center gap-2 border-b-2 border-sky-400">
+                  <Logo size={28} className="shrink-0" />
+                  <div className="text-left leading-tight">
+                    <p className="font-black text-[10px] tracking-widest uppercase">SUBIC CHURCH OF CHRIST</p>
+                    <p className="text-[8px] text-sky-400 font-bold uppercase tracking-wider">OFFICIAL REGISTERED CARD</p>
+                  </div>
+                </div>
 
-              {/* QR Image Container */}
-              <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex items-center justify-center min-h-[220px]">
-                {qrCodeUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={qrCodeUrl}
-                    alt="SCOC Member QR Pass"
-                    id="qr-image"
-                    className="w-48 h-48 rounded-lg shadow-sm border border-white"
-                  />
-                ) : (
-                  <p className="text-xs text-indigo-400 animate-pulse">Generating check-in pass...</p>
-                )}
-              </div>
+                {/* Badge ID Container / Body */}
+                <div className="p-5 flex-grow flex flex-col items-center justify-between relative">
+                  {/* Photo Frame Container */}
+                  <div className="w-24 h-24 rounded-full border-4 border-slate-50 bg-gradient-to-tr from-indigo-100 to-sky-100 text-indigo-700 flex items-center justify-center text-3xl font-black shrink-0 shadow-sm relative overflow-hidden">
+                    {selectedMemberForQr.pictures && selectedMemberForQr.pictures.length > 0 ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={selectedMemberForQr.pictures[0]}
+                        alt="Member Photo"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span>{selectedMemberForQr.firstName?.[0] || ""}{selectedMemberForQr.lastName?.[0] || ""}</span>
+                    )}
+                  </div>
 
-              <p className="text-[11px] text-gray-500 leading-relaxed max-w-xs mx-auto">
-                Scan this unique barcode to register attendance and record arrival automatically!
-              </p>
+                  {/* Name and Designation */}
+                  <div className="space-y-1 my-2.5">
+                    <h4 className="text-base font-black text-slate-905 uppercase leading-snug tracking-tight">
+                      {selectedMemberForQr.firstName} {selectedMemberForQr.lastName}
+                    </h4>
+                    <span className="inline-block px-3 py-0.5 rounded-full bg-sky-50 border border-sky-205 text-sky-800 text-[8.5px] font-extrabold uppercase tracking-widest">
+                      {selectedMemberForQr.membershipStatus || "Active Member"}
+                    </span>
+                  </div>
+
+                  {/* Ministry/Network Specs Grid */}
+                  <div className="w-full grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-left pb-1">
+                    <div>
+                      <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wide">MINISTRY</p>
+                      <p className="font-extrabold text-slate-750 text-[10px] truncate leading-tight mt-0.5">
+                        {selectedMemberForQr.ministry || "General Assembly"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wide">NETWORK CLUSTER</p>
+                      <p className="font-extrabold text-slate-750 text-[10px] truncate leading-tight mt-0.5">
+                        {selectedMemberForQr.network || "SCOC Network"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* QR Core Container */}
+                  <div className="bg-slate-50/80 p-1.5 rounded-xl border border-slate-150 flex items-center justify-center w-28 h-28 my-2">
+                    {qrCodeUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={qrCodeUrl}
+                        alt="SCOC QR ID code"
+                        className="w-full h-full rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-4 h-4 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+
+                  {/* Mono ID Tag */}
+                  <div className="text-[9px] text-slate-450 font-mono font-bold tracking-tight uppercase">
+                    MEMBER ID: {selectedMemberForQr.membershipId || "—"}
+                  </div>
+                </div>
+
+                {/* Footer Banding */}
+                <div className="bg-slate-900 text-white/50 text-[8px] font-bold py-2 uppercase tracking-widest border-t border-slate-800">
+                  Subic Church of Christ Digital Registry
+                </div>
+              </div>
             </div>
 
             {/* Footer actions */}
-            <div className="bg-gray-50/80 border-t border-gray-150 px-5 py-4 flex items-center justify-end gap-2 text-xs">
+            <div className="bg-slate-1000 border-t border-slate-850 px-5 py-4 flex items-center justify-end gap-2 text-xs">
               <button
                 onClick={() => {
                   try {
@@ -403,27 +453,251 @@ export function MemberDirectoryModule({
                       printWindow.document.write(`
                         <html>
                           <head>
-                            <title>Print QR Check-In - ${selectedMemberForQr.firstName} ${selectedMemberForQr.lastName}</title>
+                            <title>Print ID Badge - ${selectedMemberForQr.firstName} ${selectedMemberForQr.lastName}</title>
                             <style>
-                              body { font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 40px; color: #1e1b4b; background-color: #f8fafc; }
-                              .container { border: 2px dashed #6366f1; background: #ffffff; border-radius: 20px; padding: 40px; display: inline-block; max-width: 340px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
-                              h2 { margin: 15px 0 5px; font-size: 20px; font-weight: 700; }
-                              .id { margin: 0 0 10px; font-size: 13px; color: #64748b; font-family: monospace; letter-spacing: 0.05em; font-weight: 600; }
-                              .desc { margin: 0 0 25px; font-size: 12px; color: #475569; line-height: 1.5; }
-                              img { width: 200px; height: 200px; padding: 10px; background: #faf5ff; border: 1px solid #e2e8f0; border-radius: 12px; }
-                              .footer { font-size: 11px; color: #94a3b8; margin-top: 15px; border-t: 1px solid #e2e8f0; padding-top: 15px; font-weight: 700; letter-spacing: 0.1em; }
+                              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+                              
+                              /* Universal color print adjust to prevent background dropping */
+                              * {
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                                color-adjust: exact !important;
+                                box-sizing: border-box;
+                              }
+
+                              @page {
+                                size: portrait;
+                                margin: 0;
+                              }
+
+                              body {
+                                font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                background-color: #f1f5f9;
+                                margin: 0;
+                                padding: 0;
+                                width: 100vw;
+                                height: 100vh;
+                              }
+                              .id-card {
+                                width: 320px;
+                                height: 500px;
+                                background: #ffffff;
+                                border-radius: 20px;
+                                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+                                overflow: hidden;
+                                border: 1px solid #e2e8f0;
+                                display: flex;
+                                flex-direction: column;
+                                position: relative;
+                                text-align: center;
+                                margin: auto !important;
+                                page-break-inside: avoid;
+                              }
+                              
+                              @media print {
+                                body {
+                                  background-color: #f1f5f9 !important;
+                                }
+                                .id-card {
+                                  box-shadow: none !important;
+                                  border: 1px solid #cbd5e1 !important;
+                                }
+                              }
+
+                              .card-header {
+                                background: linear-gradient(135deg, #090d16, #0e1626) !important;
+                                color: #ffffff;
+                                padding: 16px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 10px;
+                                border-bottom: 3px solid #00bae1;
+                              }
+                              .header-logo {
+                                width: 36px;
+                                height: 36px;
+                              }
+                              .header-text {
+                                text-align: left;
+                              }
+                              .org-name {
+                                font-size: 11px;
+                                font-weight: 900;
+                                letter-spacing: 0.1em;
+                                margin: 0;
+                                color: #ffffff;
+                                text-transform: uppercase;
+                              }
+                              .card-title {
+                                font-size: 9px;
+                                font-weight: 700;
+                                letter-spacing: 0.15em;
+                                margin: 2px 0 0;
+                                color: #2cb0e1;
+                                text-transform: uppercase;
+                              }
+                              .card-body {
+                                padding: 24px 20px;
+                                flex-grow: 1;
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                              }
+                              .photo-frame {
+                                width: 100px;
+                                height: 100px;
+                                border-radius: 50%;
+                                border: 4px solid #f1f5f9;
+                                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                                background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 32px;
+                                font-weight: 800;
+                                color: #4f46e5;
+                                overflow: hidden;
+                                margin-bottom: 12px;
+                              }
+                              .photo-frame img {
+                                width: 100%;
+                                height: 100%;
+                                object-fit: cover;
+                              }
+                              .member-name {
+                                font-size: 18px;
+                                font-weight: 900;
+                                color: #0f172a;
+                                margin: 0 0 4px;
+                                text-transform: uppercase;
+                                letter-spacing: -0.02em;
+                              }
+                              .role-badge {
+                                background-color: #e0f2fe;
+                                color: #0369a1;
+                                padding: 4px 12px;
+                                border-radius: 9999px;
+                                font-size: 9px;
+                                letter-spacing: 0.05em;
+                                margin-bottom: 16px;
+                                font-weight: 700;
+                                display: inline-block;
+                                text-transform: uppercase;
+                              }
+                              .info-grid {
+                                width: 100%;
+                                display: grid;
+                                grid-template-columns: repeat(2, 1fr);
+                                gap: 12px;
+                                margin-bottom: 20px;
+                                text-align: left;
+                                border-top: 1px solid #f1f5f9;
+                                padding-top: 12px;
+                              }
+                              .info-item {
+                                display: flex;
+                                flex-direction: column;
+                              }
+                              .info-label {
+                                font-size: 8px;
+                                font-weight: 700;
+                                color: #94a3b8;
+                                text-transform: uppercase;
+                                letter-spacing: 0.05em;
+                                margin-bottom: 2px;
+                              }
+                              .info-value {
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: #334155;
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                              }
+                              .qr-container {
+                                padding: 8px;
+                                background: #f8fafc;
+                                border-radius: 12px;
+                                border: 1px solid #e2e8f0;
+                                display: inline-block;
+                                margin-top: auto;
+                              }
+                              .qr-container img {
+                                width: 110px;
+                                height: 110px;
+                                display: block;
+                              }
+                              .member-id {
+                                font-size: 9px;
+                                font-family: monospace;
+                                color: #64748b;
+                                margin-top: 6px;
+                                font-weight: 700;
+                                letter-spacing: 0.05em;
+                              }
+                              .card-footer {
+                                background-color: #0f172a !important;
+                                color: rgba(255, 255, 255, 0.4);
+                                padding: 10px;
+                                font-size: 8px;
+                                font-weight: 700;
+                                letter-spacing: 0.1em;
+                                text-transform: uppercase;
+                                border-top: 1px solid #1e293b;
+                              }
                             </style>
                           </head>
                           <body>
-                            <div class="container">
-                              <img src="${qrCodeUrl}" />
-                              <h2>${selectedMemberForQr.firstName} ${selectedMemberForQr.lastName}</h2>
-                              <div class="id">ID: ${selectedMemberForQr.membershipId || "—"}</div>
-                              <div class="desc">Please scan this secure code barcode at the entrance desk to log attendance.</div>
-                              <div class="footer">SUBIC CHURCH OF CHRIST</div>
+                            <div class="id-card">
+                              <div class="card-header">
+                                <svg class="header-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><path d="M148,25 C125,58 90,125 70,195 C52,258 46,315 58,345 C68,370 88,360 102,330 C135,260 168,165 185,98 C192,72 178,45 148,25 Z" fill="#2CB0E1"/><path d="M85,385 C145,355 220,310 285,245 C328,202 365,150 380,95 C382,90 376,85 370,90 C345,110 318,118 288,110 C255,102 232,82 205,95 C182,106 160,135 130,170 C100,205 82,248 76,288 C72,310 84,315 95,295 C118,255 145,218 175,190 C190,176 205,162 220,150 C228,144 235,150 231,158 C212,194 184,236 152,280 C120,324 98,362 85,385 Z" fill="#014A75"/></svg>
+                                <div class="header-text">
+                                  <div class="org-name">Subic Church of Christ</div>
+                                  <div class="card-title">Official Member Badge</div>
+                                </div>
+                              </div>
+                              <div class="card-body">
+                                <div class="photo-frame">
+                                  ${
+                                    selectedMemberForQr.pictures && selectedMemberForQr.pictures.length > 0
+                                      ? `<img src="${selectedMemberForQr.pictures[0]}" alt="Photo" />`
+                                      : `<span>${selectedMemberForQr.firstName?.[0] || ""}${selectedMemberForQr.lastName?.[0] || ""}</span>`
+                                  }
+                                </div>
+                                <h1 class="member-name">${selectedMemberForQr.firstName} ${selectedMemberForQr.lastName}</h1>
+                                <div class="role-badge">${selectedMemberForQr.membershipStatus || "Active Member"}</div>
+                                
+                                <div class="info-grid">
+                                  <div class="info-item">
+                                    <span class="info-label">DEPARTMENT / MINISTRY</span>
+                                    <span class="info-value">${selectedMemberForQr.ministry || "General Assembly"}</span>
+                                  </div>
+                                  <div class="info-item">
+                                    <span class="info-label">NETWORK CLUSTER</span>
+                                    <span class="info-value">${selectedMemberForQr.network || "SCOC Network"}</span>
+                                  </div>
+                                </div>
+
+                                <div class="qr-container">
+                                  <img src="${qrCodeUrl}" alt="QR code" />
+                                </div>
+                                <div class="member-id">ID: ${selectedMemberForQr.membershipId || "—"}</div>
+                              </div>
+                              <div class="card-footer">
+                                AUTHORIZED DIGITAL MEMBERS REGISTER
+                              </div>
                             </div>
                             <script>
-                              window.onload = function() { window.print(); window.close(); }
+                              window.onload = function() {
+                                setTimeout(function() {
+                                  window.print();
+                                  window.close();
+                                }, 300);
+                              }
                             </script>
                           </body>
                         </html>
@@ -436,21 +710,21 @@ export function MemberDirectoryModule({
                   }
                 }}
                 disabled={!qrCodeUrl}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-bold rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white border border-slate-750 hover:border-slate-700 font-bold rounded-xl transition disabled:opacity-50 cursor-pointer shadow-xs"
               >
-                <Printer className="w-3.5 h-3.5 text-gray-500" />
-                Print Pass
+                <Printer className="w-3.5 h-3.5 text-gray-400" />
+                Print Card Pass
               </button>
               
               <a
                 href={qrCodeUrl}
-                download={`SCOC_QR_${selectedMemberForQr.firstName}_${selectedMemberForQr.lastName}.png`}
-                className={`inline-flex items-center gap-1.5 px-4.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md shadow-indigo-600/10 cursor-pointer ${
+                download={`SCOC_Pass_${selectedMemberForQr.firstName}_${selectedMemberForQr.lastName}.png`}
+                className={`inline-flex items-center gap-1.5 px-4.5 py-2 bg-sky-500 hover:bg-sky-600 text-slate-950 font-black rounded-xl transition shadow-md shadow-sky-500/10 cursor-pointer ${
                   !qrCodeUrl ? "pointer-events-none opacity-50" : ""
                 }`}
               >
                 <Download className="w-3.5 h-3.5" />
-                Download PNG
+                Download Pass PNG
               </a>
             </div>
           </div>

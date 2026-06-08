@@ -2,9 +2,11 @@ import React from "react";
 
 interface LogoProps extends React.SVGProps<SVGSVGElement> {
   size?: number | string;
+  variant?: "light-bg" | "dark-bg" | "original";
 }
 
-export function Logo({ size = 32, className, ...props }: LogoProps) {
+export function Logo({ size = 32, className, variant = "light-bg", ...props }: LogoProps) {
+  const rightPathColor = (variant === "dark-bg" || variant === "original") ? "#ffffff" : "#014A75";
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -25,7 +27,7 @@ export function Logo({ size = 32, className, ...props }: LogoProps) {
            C192,72 178,45 148,25 Z"
         fill="#2CB0E1"
       />
-      {/* Deep Blue hand/bird/wave element on the right */}
+      {/* Dynamic colored hand/bird/wave element on the right */}
       <path
         d="M85,385 
            C145,355 220,310 285,245 
@@ -41,7 +43,7 @@ export function Logo({ size = 32, className, ...props }: LogoProps) {
            C228,144 235,150 231,158 
            C212,194 184,236 152,280 
            C120,324 98,362 85,385 Z"
-         fill="#014A75"
+         fill={rightPathColor}
       />
     </svg>
   );
