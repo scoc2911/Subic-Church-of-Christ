@@ -13,6 +13,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Subic Church of Christ Data Entry',
   description: 'Data entry system for Subic Church of Christ members',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
