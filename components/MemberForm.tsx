@@ -593,6 +593,33 @@ export function MemberForm({
                   <span className="text-xs font-bold text-gray-600 uppercase select-none">Registered Voter</span>
                 </label>
               </div>
+
+              {/* ID Badge Validity Metadata */}
+              <div className="md:col-span-2 border-t border-gray-150 pt-4 mt-2">
+                <h5 className="text-[11px] font-extrabold text-[#1E3A8A] uppercase tracking-wider mb-2">ID Badge Validity Parameters</h5>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Date Issued</label>
+                <input
+                  type="date"
+                  name="dateIssued"
+                  value={formData.dateIssued || ""}
+                  onChange={handleFieldChange}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs bg-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Expiration Date</label>
+                <input
+                  type="text"
+                  name="expirationDate"
+                  value={formData.expirationDate || ""}
+                  onChange={handleFieldChange}
+                  placeholder="LIFETIME OR E.G. 2031-12-31"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs bg-white"
+                />
+              </div>
+
               <div className="space-y-1 md:col-span-2">
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Special Notes</label>
                 <textarea
@@ -725,6 +752,33 @@ export function MemberForm({
                   value={formData.mothersName || ""}
                   onChange={handleFieldChange}
                   placeholder="MOTHER'S FULL MAIDEN NAME"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+
+              {/* Emergency Contact */}
+              <div className="md:col-span-2 border-t border-gray-150 pt-4 mt-2">
+                <h5 className="text-[11px] font-extrabold text-[#1E3A8A] uppercase tracking-wider mb-2">Emergency Contact Details (For Back of ID Badge)</h5>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Emergency Contact Person</label>
+                <input
+                  type="text"
+                  name="emergencyContactPerson"
+                  value={formData.emergencyContactPerson || ""}
+                  onChange={handleFieldChange}
+                  placeholder="E.G. MARY SMITH"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide block">Emergency Contact Number</label>
+                <input
+                  type="text"
+                  name="emergencyContactNumber"
+                  value={formData.emergencyContactNumber || ""}
+                  onChange={handleFieldChange}
+                  placeholder="E.G. 09XXXXXXXXX"
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase shadow-xs"
                 />
               </div>

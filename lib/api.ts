@@ -48,6 +48,10 @@ export interface Member {
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+  emergencyContactPerson?: string;
+  emergencyContactNumber?: string;
+  dateIssued?: string;
+  expirationDate?: string;
 }
 
 // Helper to remove undefined properties from an object so Firestore does not throw an error
@@ -112,6 +116,10 @@ const INITIAL_MOCK_MEMBERS: Member[] = [
     networkLeader: "Bro. Danilo Perez",
     ministry: "Music Ministry",
     ministryHead: "Sis. Teresa Cruz",
+    emergencyContactPerson: "BRO. DANILO PEREZ",
+    emergencyContactNumber: "0908-222-1111",
+    dateIssued: "2026-01-10",
+    expirationDate: "LIFETIME",
     createdAt: "2026-01-10T08:30:00Z",
     updatedAt: "2026-01-10T08:30:00Z"
   },
@@ -138,6 +146,10 @@ const INITIAL_MOCK_MEMBERS: Member[] = [
     networkLeader: "Bro. John Michael",
     ministry: "Multimedia & Audio",
     ministryHead: "Bro. Michael Reyes",
+    emergencyContactPerson: "ELENA REYES",
+    emergencyContactNumber: "0918-777-6666",
+    dateIssued: "2026-02-15",
+    expirationDate: "2031-02-15",
     createdAt: "2026-02-15T10:15:00Z",
     updatedAt: "2026-02-15T10:15:00Z"
   },
@@ -164,6 +176,10 @@ const INITIAL_MOCK_MEMBERS: Member[] = [
     networkLeader: "Bro. Danilo Perez",
     ministry: "Teaching Ministry",
     ministryHead: "Bro. Danilo Perez",
+    emergencyContactPerson: "AIDA PEREZ",
+    emergencyContactNumber: "0908-222-2222",
+    dateIssued: "2026-01-01",
+    expirationDate: "LIFETIME",
     createdAt: "2026-01-01T09:00:00Z",
     updatedAt: "2026-01-01T09:00:00Z"
   }
