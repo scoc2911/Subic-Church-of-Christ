@@ -400,27 +400,22 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     const activeEvent = events.find((e) => e.id === selectedEventId);
     const eventNameStr = activeEvent?.eventName || "Worship Service";
 
-    // Prevent changing the status of a user who scanned their QR code successfully
-    const hasScanRecord = scans.some((s) => s.memberId === memberId);
-    if (hasScanRecord) {
-      setToast({
-        message: `${name} checked in via QR pass. Handshake-authenticated records cannot be modified or set to Absent.`,
-        type: "error"
-      });
-      return;
-    }
-
     let updatedPresent = [];
     let statusText = "";
+    let updatedScans = [...scans];
+
     if (presentMembers.includes(memberId)) {
       updatedPresent = presentMembers.filter((id) => id !== memberId);
       statusText = "Absent";
+      // Prune from scans so physical logs and presence match
+      updatedScans = scans.filter((s) => s.memberId !== memberId);
     } else {
       updatedPresent = [...presentMembers, memberId];
       statusText = "Present";
     }
 
     setPresentMembers(updatedPresent);
+    setScans(updatedScans);
 
     const logMsg = `Check-in Mutated: ${name} marked ${statusText} for "${eventNameStr}" on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()} (Status: ${statusText})`;
 
@@ -429,7 +424,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
         const payload = {
           eventId: selectedEventId,
           presentMembers: updatedPresent,
-          scans,
+          scans: updatedScans,
           updatedAt: new Date().toISOString()
         };
         localStorage.setItem(`scoc_sandbox_attendance_${selectedEventId}`, JSON.stringify(payload));
@@ -454,7 +449,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
         await setDoc(attendanceDocRef, {
           eventId: selectedEventId,
           presentMembers: updatedPresent,
-          scans,
+          scans: updatedScans,
           updatedAt: serverTimestamp()
         }, { merge: true });
 
@@ -487,13 +482,14 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
 
     let updatedPresent = [];
     let statusText = "";
+    let updatedScans = [...scans];
+
     if (containsAll) {
-      // Uncheck only the filtered ones but STRICTLY preserve scanned present members
-      updatedPresent = presentMembers.filter(id => {
-        const hasScanRecord = scans.some(s => s.memberId === id);
-        return !filteredIds.includes(id) || hasScanRecord;
-      });
+      // Uncheck only the filtered ones directly
+      updatedPresent = presentMembers.filter(id => !filteredIds.includes(id));
       statusText = "Absent";
+      // Prune from scanned logs
+      updatedScans = scans.filter(s => !filteredIds.includes(s.memberId));
     } else {
       // Add only the filtered ones
       const unique = new Set([...presentMembers, ...filteredIds]);
@@ -502,6 +498,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     }
 
     setPresentMembers(updatedPresent);
+    setScans(updatedScans);
 
     const activeEvent = events.find((e) => e.id === selectedEventId);
     const eventNameStr = activeEvent?.eventName || "Worship Service";
@@ -512,7 +509,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
         const payload = {
           eventId: selectedEventId,
           presentMembers: updatedPresent,
-          scans,
+          scans: updatedScans,
           updatedAt: new Date().toISOString()
         };
         localStorage.setItem(`scoc_sandbox_attendance_${selectedEventId}`, JSON.stringify(payload));
@@ -537,7 +534,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
         await setDoc(attendanceDocRef, {
           eventId: selectedEventId,
           presentMembers: updatedPresent,
-          scans,
+          scans: updatedScans,
           updatedAt: serverTimestamp()
         }, { merge: true });
 
