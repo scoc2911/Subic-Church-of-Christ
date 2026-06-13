@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Member } from "@/lib/api";
 import { DataAnalysis } from "./DataAnalysis";
 import { 
@@ -9,7 +9,8 @@ import {
   Printer, 
   Award, 
   School, 
-  FilePieChart 
+  FilePieChart,
+  FileText
 } from "lucide-react";
 
 interface ReportsModuleProps {
@@ -48,6 +49,29 @@ export function ReportsModule({ members }: ReportsModuleProps) {
     };
   }, [members]);
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportWordReport = async () => {
+    setIsExporting(true);
+    try {
+      const { buildWordReportBlob } = await import("@/lib/docx-export");
+      const blob = await buildWordReportBlob(members);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SCOC_Demographics_Statistical_Report_${new Date().getFullYear()}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to generate Word (.docx) report:", err);
+      alert("An unexpected error occurred during report generation. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handlePrintReport = () => {
     try {
       window.focus();
@@ -75,13 +99,24 @@ export function ReportsModule({ members }: ReportsModuleProps) {
           </p>
         </div>
 
-        <button
-          onClick={handlePrintReport}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer self-stretch sm:self-center shadow-xs"
-        >
-          <Printer className="w-4 h-4 text-gray-400" />
-          Print Full Report
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <button
+            onClick={handleExportWordReport}
+            disabled={isExporting}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-transparent rounded-lg text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 transition cursor-pointer self-stretch sm:self-center shadow-xs"
+          >
+            <FileText className="w-4 h-4 text-white" />
+            {isExporting ? "Exporting..." : "Export Word Report"}
+          </button>
+
+          <button
+            onClick={handlePrintReport}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer self-stretch sm:self-center shadow-xs"
+          >
+            <Printer className="w-4 h-4 text-gray-400" />
+            Print Full Report
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards Section */}
