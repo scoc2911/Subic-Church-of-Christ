@@ -1141,6 +1141,7 @@ export default function Home() {
         {activeTab === "users" && activeRole === "admin" && (
           <UserManagementModule
             currentAdminEmail="scoc2911@gmail.com"
+            onConfirmAction={(cfg) => setConfirmConfig({ isOpen: true, ...cfg })}
           />
         )}
 

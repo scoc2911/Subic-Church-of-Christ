@@ -22,9 +22,10 @@ interface UserRoles {
 
 interface UserManagementModuleProps {
   currentAdminEmail: string;
+  onConfirmAction?: (cfg: { title: string; description: string; onConfirm: () => void }) => void;
 }
 
-export function UserManagementModule({ currentAdminEmail }: UserManagementModuleProps) {
+export function UserManagementModule({ currentAdminEmail, onConfirmAction }: UserManagementModuleProps) {
   const [users, setUsers] = useState<UserRoles[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newEmail, setNewEmail] = useState("");
@@ -202,29 +203,39 @@ export function UserManagementModule({ currentAdminEmail }: UserManagementModule
       return;
     }
 
-    if (!confirm(`Are you sure you want to revoke access metadata for ${email}?`)) {
-      return;
-    }
-
-    try {
-      if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
-        const rawRoles = localStorage.getItem("scoc_sandbox_userRoles") || "[]";
-        let list: UserRoles[] = [];
-        try { list = JSON.parse(rawRoles); } catch (e) {}
-        
-        const filtered = list.filter(u => u.uid !== uid);
-        localStorage.setItem("scoc_sandbox_userRoles", JSON.stringify(filtered));
-        
-        alert(`Access rights revoked for ${email} (Offline Sandbox).`);
-        loadUsers();
-      } else {
-        await deleteDoc(doc(db, "userRoles", uid));
-        alert(`Access rights revoked for ${email}.`);
-        loadUsers();
+    const performDelete = async () => {
+      try {
+        if (typeof window !== "undefined" && localStorage.getItem("scoc_sandbox") === "true") {
+          const rawRoles = localStorage.getItem("scoc_sandbox_userRoles") || "[]";
+          let list: UserRoles[] = [];
+          try { list = JSON.parse(rawRoles); } catch (e) {}
+          
+          const filtered = list.filter(u => u.uid !== uid);
+          localStorage.setItem("scoc_sandbox_userRoles", JSON.stringify(filtered));
+          
+          alert(`Access rights revoked for ${email} (Offline Sandbox).`);
+          loadUsers();
+        } else {
+          await deleteDoc(doc(db, "userRoles", uid));
+          alert(`Access rights revoked for ${email}.`);
+          loadUsers();
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to revoke access.");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to revoke access.");
+    };
+
+    if (onConfirmAction) {
+      onConfirmAction({
+        title: "Revoke User Access",
+        description: `Are you sure you want to revoke access metadata for ${email}?`,
+        onConfirm: performDelete
+      });
+    } else {
+      if (confirm(`Are you sure you want to revoke access metadata for ${email}?`)) {
+        performDelete();
+      }
     }
   };
 

@@ -58,6 +58,42 @@ export function MemberDirectoryModule({
   const [isCardBackView, setIsCardBackView] = useState(false);
 
   const [isExporting, setIsExporting] = useState(false);
+  const [isCapturingPass, setIsCapturingPass] = useState(false);
+
+  const handleDownloadPassPng = async () => {
+    if (!selectedMemberForQr) return;
+    setIsCapturingPass(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const elementId = isCardBackView ? "scoc-id-card-back" : "scoc-id-card-front";
+      const element = document.getElementById(elementId);
+      if (!element) {
+        alert("ID Card element is missing. Please try again.");
+        return;
+      }
+
+      const imgUrl = await toPng(element, {
+        pixelRatio: 3,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+
+      const a = document.createElement("a");
+      a.href = imgUrl;
+      const sideName = isCardBackView ? "Back_Side" : "Front_Side";
+      a.download = `SCOC_Digital_Pass_${selectedMemberForQr.firstName}_${selectedMemberForQr.lastName}_${sideName}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Failed to generate digital pass PNG image:", err);
+      alert("Could not generate digital pass image. Please try again.");
+    } finally {
+      setIsCapturingPass(false);
+    }
+  };
 
   const handleExportWordReport = async () => {
     setIsExporting(true);
@@ -449,7 +485,7 @@ export function MemberDirectoryModule({
 
               {!isCardBackView ? (
                 /* FRONT SIDE DESIGN */
-                <div className="w-[272px] h-[432px] bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden relative text-center text-slate-850 animate-scale-up">
+                <div id="scoc-id-card-front" className="w-[272px] h-[432px] bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden relative text-center text-slate-850 animate-scale-up">
                   {/* Badge Header Banner */}
                   <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-2.5 text-white flex items-center justify-center gap-1.5 border-b-2 border-sky-400 h-[64px] shrink-0">
                     <Logo size={24} className="shrink-0" />
@@ -529,7 +565,7 @@ export function MemberDirectoryModule({
                 </div>
               ) : (
                 /* BACK SIDE DESIGN */
-                <div className="w-[272px] h-[432px] bg-slate-50 rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden relative text-slate-850 animate-scale-up">
+                <div id="scoc-id-card-back" className="w-[272px] h-[432px] bg-slate-50 rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden relative text-slate-850 animate-scale-up">
                   {/* Badge Header Banner */}
                   <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-2.5 text-white flex items-center justify-center gap-1.5 border-b-2 border-sky-400 h-[64px] shrink-0">
                     <Logo size={20} className="shrink-0" />
@@ -1188,16 +1224,14 @@ export function MemberDirectoryModule({
                 Print Card Pass
               </button>
               
-              <a
-                href={qrCodeUrl}
-                download={`SCOC_Pass_${selectedMemberForQr.firstName}_${selectedMemberForQr.lastName}.png`}
-                className={`inline-flex items-center gap-1.5 px-4.5 py-2 bg-sky-500 hover:bg-sky-600 text-slate-950 font-black rounded-xl transition shadow-md shadow-sky-500/10 cursor-pointer ${
-                  !qrCodeUrl ? "pointer-events-none opacity-50" : ""
-                }`}
+              <button
+                onClick={handleDownloadPassPng}
+                disabled={isCapturingPass || !qrCodeUrl}
+                className={`inline-flex items-center gap-1.5 px-4.5 py-2 bg-sky-500 hover:bg-sky-600 text-slate-950 font-black rounded-xl transition shadow-md shadow-sky-500/10 cursor-pointer disabled:opacity-50`}
               >
                 <Download className="w-3.5 h-3.5" />
-                Download Pass PNG
-              </a>
+                {isCapturingPass ? "Capturing..." : "Download Pass PNG"}
+              </button>
             </div>
           </div>
         </div>
