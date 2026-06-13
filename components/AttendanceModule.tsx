@@ -49,6 +49,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
   // QR Check-In Terminal States
   const [scans, setScans] = useState<Array<{ memberId: string; name: string; scannedAt: string }>>([]);
   const [useUploadInstead, setUseUploadInstead] = useState(false);
+  const processingRef = React.useRef(false);
   const [lastScannedResult, setLastScannedResult] = useState<{
     name: string;
     time: string;
@@ -190,64 +191,77 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
 
   // QR Code Terminal Scan Handlers
   const handleQrCodeScanned = async (decodedText: string) => {
-    // 1. Validate the code format
-    const prefix = "scoc-member-id:";
-    if (!decodedText.startsWith(prefix)) {
-      setLastScannedResult({
-        name: "Unknown / Invalid Pass",
-        time: new Date().toLocaleTimeString(),
-        status: "error",
-        errorMsg: "Form-factor mismatch: Scanned code is not an authorized SCOC member check-in pass."
-      });
-      setToast({
-        message: "Check-in notice: Invalid security token scan.",
-        type: "error"
-      });
-      return;
-    }
+    if (processingRef.current) return;
+    processingRef.current = true;
 
-    const codePayloadVal = decodedText.slice(prefix.length).trim();
-    const member = members.find(m => 
-      (m.id && m.id === codePayloadVal) || 
-      (m.membershipId && m.membershipId.toLowerCase().trim() === codePayloadVal.toLowerCase())
-    );
+    try {
+      // 1. Validate the code format
+      const prefix = "scoc-member-id:";
+      if (!decodedText.startsWith(prefix)) {
+        setLastScannedResult({
+          name: "Unknown / Invalid Pass",
+          time: new Date().toLocaleTimeString(),
+          status: "error",
+          errorMsg: "Form-factor mismatch: Scanned code is not an authorized SCOC member check-in pass."
+        });
+        setToast({
+          message: "Check-in notice: Invalid security token scan.",
+          type: "error"
+        });
+        return;
+      }
 
-    if (!member) {
-      setLastScannedResult({
-        name: "Unregistered Profile",
-        time: new Date().toLocaleTimeString(),
-        status: "error",
-        errorMsg: `Security trace failed: ID "${codePayloadVal}" is not registered in church registry database.`
-      });
-      setToast({
-        message: "Check-in failed: No profile matching scanned ID.",
-        type: "error"
-      });
-      return;
-    }
+      const codePayloadVal = decodedText.slice(prefix.length).trim();
+      const member = members.find(m => 
+        (m.id && m.id === codePayloadVal) || 
+        (m.membershipId && m.membershipId.toLowerCase().trim() === codePayloadVal.toLowerCase())
+      );
 
-    const memberId = member.id || codePayloadVal;
-    const name = `${member.firstName} ${member.lastName}`;
-    const nowTime = new Date().toLocaleTimeString();
+      if (!member) {
+        setLastScannedResult({
+          name: "Unregistered Profile",
+          time: new Date().toLocaleTimeString(),
+          status: "error",
+          errorMsg: `Security trace failed: ID "${codePayloadVal}" is not registered in church registry database.`
+        });
+        setToast({
+          message: "Check-in failed: No profile matching scanned ID.",
+          type: "error"
+        });
+        return;
+      }
 
-    // 2. Prevent duplicates
-    if (presentMembers.includes(memberId)) {
-      const existingScan = scans.find(s => s.memberId === memberId);
-      const displayTime = existingScan ? new Date(existingScan.scannedAt).toLocaleTimeString() : nowTime;
-      
-      setLastScannedResult({
-        name,
-        time: displayTime,
-        status: "duplicate",
-        errorMsg: `${name} has already scanned in on this event today.`,
-        member: member
-      });
-      setToast({
-        message: `${name} is already logged present today.`,
-        type: "info"
-      });
-      return;
-    }
+      const memberId = member.id || codePayloadVal;
+      const name = `${member.firstName} ${member.lastName}`;
+      const nowTime = new Date().toLocaleTimeString();
+
+      // 2. Prevent duplicates
+      if (presentMembers.includes(memberId)) {
+        const existingScan = scans.find(s => s.memberId === memberId);
+        const displayTime = existingScan ? new Date(existingScan.scannedAt).toLocaleTimeString() : nowTime;
+        
+        setLastScannedResult({
+          name,
+          time: displayTime,
+          status: "duplicate",
+          errorMsg: `${name} has already scanned in on this event today.`,
+          member: member
+        });
+        setToast({
+          message: `${name} is already logged present today.`,
+          type: "info"
+        });
+        return;
+      }
+
+      // HAPTIC FEEDBACK (Vibration)
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate(200);
+        } catch (vibrateErr) {
+          console.warn("Vibration not supported on this device/browser.");
+        }
+      }
 
     // 3. Record attendance
     const newScanLog = {
@@ -323,7 +337,12 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     } catch (e) {
       console.error("Failed to save real-time scan attendance:", e);
     }
-  };
+  } finally {
+    setTimeout(() => {
+      processingRef.current = false;
+    }, 800); // 800ms debounce buffer to prevent rapid duplicate scans
+  }
+};
 
   // Live Camera stream scanner hook
   useEffect(() => {
