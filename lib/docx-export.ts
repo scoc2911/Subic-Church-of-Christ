@@ -13,7 +13,8 @@ import {
   PageBreak,
   Header,
   Footer,
-  SimpleField
+  SimpleField,
+  PageOrientation
 } from "docx";
 import { Member } from "./api";
 
@@ -914,6 +915,283 @@ export async function buildWordReportBlob(members: Member[]): Promise<Blob> {
           })
         },
         children: bodyContent
+      }
+    ]
+  });
+
+  return Packer.toBlob(doc);
+}
+
+// -------------------------------------------------------------------------
+// MEMBER REGISTRY DIRECTORY EXPORT BUILDER (LANDSCAPE SPREADSHEET DIRECTORY)
+// -------------------------------------------------------------------------
+export async function buildDirectoryWordBlob(members: Member[]): Promise<Blob> {
+  const totalCount = members.length;
+  const generateDate = new Date().toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  // Calculate active and baptized counts
+  const activeCount = members.filter(m => m.membershipStatus === "Active").length;
+  const baptizedCount = members.filter(m => m.isBaptized === true).length;
+  const maleCount = members.filter(m => m.gender === "Male" || m.gender === "M").length;
+  const femaleCount = members.filter(m => m.gender === "Female" || m.gender === "F").length;
+
+  const directoryContent: any[] = [];
+
+  // Title Section block (Wide Header)
+  directoryContent.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 60 },
+      children: [
+        new TextRun({
+          text: "SUBIC CHURCH OF CHRIST",
+          bold: true,
+          size: 32, // 16pt
+          color: COLOR_PRIMARY,
+          font: FONT_HEADING
+        })
+      ]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 60 },
+      children: [
+        new TextRun({
+          text: "OFFICIAL MEMBER REGISTRY DIRECTORY",
+          bold: true,
+          size: 24, // 12pt
+          color: COLOR_SECONDARY,
+          font: FONT_HEADING
+        })
+      ]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 120 },
+      children: [
+        new TextRun({
+          text: `Generated on: ${generateDate}  |  Administrative Record Source`,
+          italics: true,
+          size: 16, // 8pt
+          color: COLOR_MUTED,
+          font: FONT_BODY
+        })
+      ]
+    }),
+    createHorizontalRule(),
+    createSpacer(1)
+  );
+
+  // SUMMARY INFORMATION PANEL
+  directoryContent.push(
+    ...createSectionHeader("1. Directory Scope & Aggregate Summary", "Overview of active filtered membership dataset"),
+    createParagraph(
+      "This document serves as the official administrative printed record representing the filtered dataset currently selected in the Registry Directory dashboard UI. Below is the localized data profile:"
+    ),
+    new Paragraph({
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({ text: "• Total Records Included: ", bold: true, size: 18, font: FONT_BODY }),
+        new TextRun({ text: `${totalCount} Registered members matched in export`, size: 18, font: FONT_BODY, color: COLOR_PRIMARY, bold: true })
+      ]
+    }),
+    new Paragraph({
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({ text: "• Active Status Members: ", bold: true, size: 18, font: FONT_BODY }),
+        new TextRun({ text: `${activeCount} out of ${totalCount} (${totalCount ? Math.round((activeCount / totalCount) * 100) : 0}%) total`, size: 18, font: FONT_BODY })
+      ]
+    }),
+    new Paragraph({
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({ text: "• Covenant Baptized Count: ", bold: true, size: 18, font: FONT_BODY }),
+        new TextRun({ text: `${baptizedCount} (${totalCount ? Math.round((baptizedCount / totalCount) * 100) : 0}%) registered database baptisms`, size: 18, font: FONT_BODY })
+      ]
+    }),
+    new Paragraph({
+      spacing: { before: 40, after: 200 },
+      children: [
+        new TextRun({ text: "• Gender Identification Split: ", bold: true, size: 18, font: FONT_BODY }),
+        new TextRun({ text: `${maleCount} Males (${totalCount ? Math.round((maleCount / totalCount) * 100) : 0}%)  |  ${femaleCount} Females (${totalCount ? Math.round((femaleCount / totalCount) * 100) : 0}%)`, size: 18, font: FONT_BODY })
+      ]
+    }),
+    createHorizontalRule(),
+    createSpacer(1)
+  );
+
+  // SECTION 2: DATASHEET TABLE LISTING
+  directoryContent.push(
+    ...createSectionHeader("2. Complete Member Directory Tabulation", "Comprehensive alphabetical catalogue"),
+    createParagraph(
+      "The following multi-column directory spreadsheet details active identifiers, demographics, contact parameters, cell leaders, and active service divisions of each record in the filtered list. Layout has been structured in high-density Landscape print configuration."
+    ),
+    createSpacer(1)
+  );
+
+  const tableHeaders = [
+    { title: "Membership ID", widthPercent: 12 },
+    { title: "Full Registrant Name", widthPercent: 20 },
+    { title: "Age / Gender", widthPercent: 8 },
+    { title: "Civil Status", widthPercent: 10 },
+    { title: "Contact Information", widthPercent: 18 },
+    { title: "Spiritual Networks", widthPercent: 15 },
+    { title: "Home Address", widthPercent: 17 }
+  ];
+
+  const tableRows = members
+    .sort((a, b) => (a.lastName || "").localeCompare(b.lastName || ""))
+    .map((m) => {
+      const uId = m.membershipId || m.id?.substring(0, 8) || "N/A";
+      const fullName = `${m.lastName || ""}, ${m.firstName || ""}${m.middleName ? ' ' + m.middleName.charAt(0) + '.' : ''}`;
+      
+      let finalAge = m.age;
+      if (m.birthday) {
+        const calc = calculateAge(m.birthday);
+        if (calc !== undefined) finalAge = calc;
+      }
+      
+      const ageLabel = finalAge !== undefined ? `${finalAge} yrs` : "N/A";
+      const genLabel = m.gender || "N/A";
+      const ageGenStr = `${ageLabel} / ${genLabel}`;
+      
+      const civilStatus = m.maritalStatus || "N/A";
+      
+      const contactNo = m.contactNumber || "N/A";
+      const emailAddr = m.email || "N/A";
+      
+      const groupLabel = m.network || "No Cluster";
+      const groupLeader = m.networkLeader ? `(Leader: ${m.networkLeader})` : "";
+      
+      const activeMinistry = m.ministry || "No Ministry";
+      const ministryHeadLabel = m.ministryHead ? `(Head: ${m.ministryHead})` : "";
+      
+      const addressText = m.address || "N/A";
+      
+      const progressLabel = m.membershipStatus || "Active";
+
+      return [
+        [
+          new Paragraph({
+            children: [
+              new TextRun({ text: m.isBaptized ? "⭐ " : "", size: 14 }),
+              new TextRun({ text: uId, size: 16, font: "Courier New", bold: true })
+            ]
+          })
+        ],
+        [
+          new Paragraph({ children: [new TextRun({ text: fullName, bold: true, size: 18, color: COLOR_PRIMARY })] }),
+          new Paragraph({ children: [new TextRun({ text: progressLabel, size: 14, bold: true, color: progressLabel === "Active" ? "15803d" : "b91c1c" })] })
+        ],
+        [
+          new Paragraph({ children: [new TextRun({ text: ageGenStr, size: 16 })] })
+        ],
+        [
+          new Paragraph({ children: [new TextRun({ text: civilStatus, size: 16 })] })
+        ],
+        [
+          new Paragraph({ children: [new TextRun({ text: contactNo, size: 16, bold: true, color: COLOR_DARK })] }),
+          new Paragraph({ children: [new TextRun({ text: emailAddr, size: 14, color: COLOR_MUTED })] })
+        ],
+        [
+          new Paragraph({ children: [new TextRun({ text: `Network: ${groupLabel}`, size: 15, bold: true, color: "0284c7" })] }),
+          new Paragraph({ children: [new TextRun({ text: `Ministry: ${activeMinistry}`, size: 14, color: COLOR_MUTED })] })
+        ],
+        [
+          new Paragraph({ children: [new TextRun({ text: addressText, size: 15 })] })
+        ]
+      ];
+    });
+
+  const directoryTable = buildStyledTable(tableHeaders, tableRows);
+  directoryContent.push(directoryTable);
+
+  const doc = new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            size: {
+              orientation: PageOrientation.LANDSCAPE,
+              width: 15840, // 11 inches in dxa
+              height: 12240 // 8.5 inches in dxa
+            },
+            margin: {
+              top: 1000,
+              bottom: 1000,
+              left: 1000,
+              right: 1000
+            }
+          }
+        },
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({
+                    text: "SUBIC CHURCH OF CHRIST  |  MEMBER REGISTRY DIRECTORY",
+                    size: 16,
+                    color: COLOR_MUTED,
+                    font: FONT_HEADING,
+                    bold: true
+                  })
+                ]
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "_".repeat(130),
+                    size: 14,
+                    color: COLOR_BORDER,
+                    font: FONT_BODY
+                  })
+                ]
+              })
+            ]
+          })
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: "Page ",
+                    size: 18,
+                    color: COLOR_MUTED,
+                    font: FONT_BODY
+                  }),
+                  new SimpleField("PAGE"),
+                  new TextRun({
+                    text: " of ",
+                    size: 18,
+                    color: COLOR_MUTED,
+                    font: FONT_BODY
+                  }),
+                  new SimpleField("NUMPAGES"),
+                  new TextRun({
+                    text: "  |  INTERNAL CHURCH COVENANT RECORD",
+                    size: 16,
+                    color: "b91c1c",
+                    font: FONT_HEADING,
+                    bold: true
+                  })
+                ]
+              })
+            ]
+          })
+        },
+        children: directoryContent
       }
     ]
   });

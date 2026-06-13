@@ -17,7 +17,8 @@ import {
   QrCode,
   Download,
   Printer,
-  X
+  X,
+  FileText
 } from "lucide-react";
 import QRCode from "qrcode";
 import { Logo } from "@/components/Logo";
@@ -55,6 +56,29 @@ export function MemberDirectoryModule({
   const [selectedMemberForQr, setSelectedMemberForQr] = useState<Member | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [isCardBackView, setIsCardBackView] = useState(false);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportWordReport = async () => {
+    setIsExporting(true);
+    try {
+      const { buildDirectoryWordBlob } = await import("@/lib/docx-export");
+      const blob = await buildDirectoryWordBlob(filteredMembers);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SCOC_Member_Registry_Directory_Filtered_${new Date().getFullYear()}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to generate Word (.docx) report:", err);
+      alert("An unexpected error occurred during report generation. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const getDynamicFontSizeClass = (text: string, baseSize: string = "text-[9px]") => {
     if (!text) return baseSize;
@@ -163,6 +187,13 @@ export function MemberDirectoryModule({
               className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-1.5 text-gray-500" /> Networks
+            </button>
+            <button
+              onClick={handleExportWordReport}
+              disabled={isExporting}
+              className="inline-flex items-center justify-center px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition cursor-pointer"
+            >
+              <FileText className="w-4 h-4 mr-1.5 text-white" /> {isExporting ? "Exporting..." : "Export Word Report"}
             </button>
             <button
               onClick={onAddMemberClick}
