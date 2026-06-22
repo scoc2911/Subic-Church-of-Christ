@@ -1073,6 +1073,7 @@ export default function Home() {
             networks={networks}
             ministries={ministries}
             role={activeRole}
+            myProfile={myProfile}
             onAddMemberClick={() => {
               setEditingMember(undefined);
               setIsFormModalOpen(true);

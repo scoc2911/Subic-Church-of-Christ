@@ -27,7 +27,8 @@ interface MemberDirectoryModuleProps {
   members: Member[];
   networks: Network[];
   ministries: Ministry[];
-  role: "admin" | "viewer";
+  role: "admin" | "viewer" | "guest";
+  myProfile?: Member | null;
   onAddMemberClick: () => void;
   onEditMemberClick: (member: Member) => void;
   onDeleteMemberClick: (id: string, name: string) => void;
@@ -41,6 +42,7 @@ export function MemberDirectoryModule({
   networks,
   ministries,
   role,
+  myProfile,
   onAddMemberClick,
   onEditMemberClick,
   onDeleteMemberClick,
@@ -95,6 +97,45 @@ export function MemberDirectoryModule({
     }
   };
 
+  const handleDownloadPassPdf = async () => {
+    if (!selectedMemberForQr) return;
+    setIsCapturingPass(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const { toPng } = await import("html-to-image");
+      const elementId = isCardBackView ? "scoc-id-card-back" : "scoc-id-card-front";
+      const element = document.getElementById(elementId);
+      if (!element) {
+        alert("ID Card element is missing. Please try again.");
+        return;
+      }
+
+      const imgUrl = await toPng(element, {
+        pixelRatio: 4,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+
+      // ID Card standard CR80 size: 2.125 x 3.375 inches
+      // We'll create a PDF with approximately those dimensions (in mm: 54 x 86)
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: [54, 86]
+      });
+
+      pdf.addImage(imgUrl, 'PNG', 0, 0, 54, 86);
+      const sideName = isCardBackView ? "Back_Side" : "Front_Side";
+      pdf.save(`SCOC_Digital_Pass_${selectedMemberForQr.firstName}_${selectedMemberForQr.lastName}_${sideName}.pdf`);
+    } catch (err: any) {
+      console.error("Failed to generate digital pass PDF:", err?.message || String(err));
+      alert("Could not generate digital pass PDF. Please try again.");
+    } finally {
+      setIsCapturingPass(false);
+    }
+  };
   const handleExportWordReport = async () => {
     setIsExporting(true);
     try {
@@ -236,6 +277,16 @@ export function MemberDirectoryModule({
               className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-1.5" /> Add Member Profile
+            </button>
+          </div>
+        )}
+        {(role !== "admin") && myProfile && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setSelectedMemberForQr(myProfile)}
+              className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition cursor-pointer"
+            >
+              <QrCode className="w-4 h-4 mr-1.5 text-white" /> View My Digital Pass
             </button>
           </div>
         )}
@@ -390,14 +441,18 @@ export function MemberDirectoryModule({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => setSelectedMemberForQr(member)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-indigo-50/50 hover:bg-indigo-50 text-indigo-750 border border-indigo-150 rounded-lg transition cursor-pointer leading-none"
-                      title="View member verification pass"
-                    >
-                      <QrCode className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>Scan pass</span>
-                    </button>
+                    {(role === "admin" || (myProfile && member.id === myProfile.id)) ? (
+                      <button
+                        onClick={() => setSelectedMemberForQr(member)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-indigo-50/50 hover:bg-indigo-50 text-indigo-750 border border-indigo-150 rounded-lg transition cursor-pointer leading-none"
+                        title="View member verification pass"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>{member.id === myProfile?.id ? "My Pass" : "Scan pass"}</span>
+                      </button>
+                    ) : (
+                      <span className="text-gray-400 text-[10px] uppercase font-bold italic tracking-wider">Restricted</span>
+                    )}
                   </td>
                   {role === "admin" && (
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1224,14 +1279,24 @@ export function MemberDirectoryModule({
                 Print Card Pass
               </button>
               
-              <button
-                onClick={handleDownloadPassPng}
-                disabled={isCapturingPass || !qrCodeUrl}
-                className={`inline-flex items-center gap-1.5 px-4.5 py-2 bg-sky-500 hover:bg-sky-600 text-slate-950 font-black rounded-xl transition shadow-md shadow-sky-500/10 cursor-pointer disabled:opacity-50`}
-              >
-                <Download className="w-3.5 h-3.5" />
-                {isCapturingPass ? "Capturing..." : "Download Pass PNG"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDownloadPassPng}
+                  disabled={isCapturingPass || !qrCodeUrl}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-sky-500 hover:bg-sky-600 text-slate-950 font-black rounded-xl transition shadow-md shadow-sky-500/10 cursor-pointer disabled:opacity-50`}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {isCapturingPass ? "..." : "PNG"}
+                </button>
+                <button
+                  onClick={handleDownloadPassPdf}
+                  disabled={isCapturingPass || !qrCodeUrl}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-xl transition shadow-md shadow-rose-500/10 cursor-pointer disabled:opacity-50`}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {isCapturingPass ? "..." : "PDF"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
