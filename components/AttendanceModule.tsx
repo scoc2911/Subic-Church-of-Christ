@@ -362,7 +362,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
           },
           () => {}
         ).catch((err: any) => {
-          console.warn("Express Reader start blocked/blocked camera:", err);
+          console.warn("Express Reader start blocked/blocked camera:", err?.message || String(err));
         });
       });
 
@@ -372,7 +372,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
             if (html5QrCode.isScanning) {
               html5QrCode.stop().then(() => {
                 html5QrCode.clear();
-              }).catch((e: any) => console.error(e));
+              }).catch((e: any) => console.error("QR stop error", e?.message || String(e)));
             }
           } catch(e) {}
         }
@@ -391,7 +391,7 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
             handleQrCodeScanned(decodedText);
           })
           .catch((err) => {
-            console.error(err);
+            console.error("QR scan file error", err?.message || String(err));
             setToast({
               message: "Check-in notice: QR-decoder could not capture barcode in file. Try a direct crisp scanner pass.",
               type: "error"
@@ -676,16 +676,112 @@ export function AttendanceModule({ members, events, role }: AttendanceModuleProp
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     try {
-      window.focus();
-      window.print();
+      const { jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+
+      const doc = new jsPDF();
+      doc.text(`Attendance Report - ${selectedEvent?.eventName || 'Event'}`, 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Date: ${selectedEvent?.eventDate ? new Date(selectedEvent.eventDate).toLocaleDateString() : 'N/A'}`, 14, 22);
+      
+      const recordsByNetwork: Record<string, typeof filteredMembers> = {};
+      
+      const sortedFilteredMembers = [...filteredMembers].sort((a, b) => {
+        const netA = a.network || "Unassigned";
+        const netB = b.network || "Unassigned";
+        if (netA < netB) return -1;
+        if (netA > netB) return 1;
+        
+        const nameA = `${a.lastName || ''}, ${a.firstName || ''}`;
+        const nameB = `${b.lastName || ''}, ${b.firstName || ''}`;
+        return nameA.localeCompare(nameB);
+      });
+
+      sortedFilteredMembers.forEach(m => {
+        const net = m.network || "Unassigned";
+        if (!recordsByNetwork[net]) recordsByNetwork[net] = [];
+        recordsByNetwork[net].push(m);
+      });
+
+      const networks = Object.keys(recordsByNetwork).sort();
+
+      let currentY = 28;
+      let totalPresent = 0;
+      let totalMembers = 0;
+      const pageHeight = doc.internal.pageSize.height;
+
+      networks.forEach(net => {
+         const membersInNet = recordsByNetwork[net];
+         let netPresent = 0;
+         
+         const head = [['Name', 'ID', 'Status', 'Log Time', 'Ministry']];
+         const body = membersInNet.map(m => {
+            const isPresent = presentMembers.includes(m.id!);
+            if (isPresent) netPresent++;
+            const scan = scans.find(s => s.memberId === m.id);
+            const logTime = isPresent ? (scan ? new Date(scan.scannedAt).toLocaleTimeString() : 'Manual Check-in') : 'Absent';
+            
+            return [
+               `${m.lastName || ''}, ${m.firstName || ''}`,
+               m.membershipId || 'N/A',
+               isPresent ? 'Present' : 'Absent',
+               logTime,
+               m.ministry || '-'
+            ];
+         });
+
+         totalPresent += netPresent;
+         totalMembers += membersInNet.length;
+
+         if (currentY > pageHeight - 30) {
+            doc.addPage();
+            currentY = 20;
+         }
+
+         doc.setFontSize(11);
+         doc.setTextColor(79, 70, 229); // Indigo 600
+         doc.text(`Network: ${net} (Present: ${netPresent}/${membersInNet.length})`, 14, currentY);
+         
+         autoTable(doc, {
+            head,
+            body,
+            startY: currentY + 3,
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [79, 70, 229] },
+            margin: { left: 14 }
+         });
+
+         currentY = (doc as any).lastAutoTable.finalY + 10;
+      });
+
+      if (currentY > pageHeight - 20) {
+          doc.addPage();
+          currentY = 20;
+      }
+
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Grand Total Present: ${totalPresent} / ${totalMembers} (${Math.round((totalPresent/Math.max(1, totalMembers))*100)}%)`, 14, currentY);
+
+      doc.save(`attendance_${selectedEvent?.eventName?.replace(/[^a-z0-9]/gi, '_') || 'report'}.pdf`);
+      setToast({
+        message: "PDF downloaded successfully!",
+        type: "success"
+      });
     } catch (err) {
-      console.error("Print triggered an error:", err);
-      alert(
-        "Printing is blocked by the embedded browser preview sandbox.\n\n" +
-        "Workaround: Please open this application in a new tab (click the 'Open in new tab' button at the top-right of your screen) and try printing there. It will work perfectly!"
-      );
+      console.error("PDF Generation error:", err);
+      try {
+        window.focus();
+        window.print();
+      } catch (printErr) {
+        alert(
+          "Printing is blocked by the embedded browser preview sandbox.\n\n" +
+          "Workaround: Please open this application in a new tab (click the 'Open in new tab' button at the top-right of your screen) and try printing there. It will work perfectly!"
+        );
+      }
     }
   };
 

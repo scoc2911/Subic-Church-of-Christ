@@ -87,8 +87,8 @@ export function MemberDirectoryModule({
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-    } catch (err) {
-      console.error("Failed to generate digital pass PNG image:", err);
+    } catch (err: any) {
+      console.error("Failed to generate digital pass PNG image:", err?.message || String(err));
       alert("Could not generate digital pass image. Please try again.");
     } finally {
       setIsCapturingPass(false);
@@ -155,7 +155,7 @@ export function MemberDirectoryModule({
         },
       })
         .then((url) => setQrCodeUrl(url))
-        .catch((err) => console.error("QR Pass Generation Error", err));
+        .catch((err: any) => console.error("QR Pass Generation Error", err?.message || String(err)));
     } else {
       setQrCodeUrl("");
     }
