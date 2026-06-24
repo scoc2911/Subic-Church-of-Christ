@@ -23,6 +23,7 @@ import {
 import { MemberForm, calculateAge } from "@/components/MemberForm";
 import { Logo } from "@/components/Logo";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { DigitalPassModal } from "@/components/DigitalPassModal";
 import * as Dialog from "@radix-ui/react-dialog";
 
 // Premium Module Imports
@@ -57,6 +58,7 @@ import {
   User,
   Mail,
   Phone,
+  QrCode,
   MapPin,
   GraduationCap,
   Heart,
@@ -132,6 +134,7 @@ export default function Home() {
   const [myProfile, setMyProfile] = useState<Member | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
   const [isEditingMyProfile, setIsEditingMyProfile] = useState<boolean>(false);
+  const [selectedMemberForQr, setSelectedMemberForQr] = useState<Member | null>(null);
 
   // Event Scheduler modal state (Compatible with original flow)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
@@ -560,13 +563,22 @@ export default function Home() {
               </div>
               
               {!isEditingMyProfile && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditingMyProfile(true)}
-                  className="px-4 py-2 border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-600 font-extrabold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shrink-0 shadow-xs"
-                >
-                  <Edit3 className="w-3.5 h-3.5" /> Modify Profile Details
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMemberForQr(myProfile)}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                  >
+                    <QrCode className="w-3.5 h-3.5" /> Download Digital Pass
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingMyProfile(true)}
+                    className="px-4 py-2 border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-600 font-extrabold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shrink-0 shadow-xs"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Modify Profile Details
+                  </button>
+                </div>
               )}
             </div>
 
@@ -729,6 +741,12 @@ export default function Home() {
               />
             </div>
           </main>
+        )}
+        {selectedMemberForQr && (
+          <DigitalPassModal 
+            member={selectedMemberForQr} 
+            onClose={() => setSelectedMemberForQr(null)} 
+          />
         )}
       </div>
     );
