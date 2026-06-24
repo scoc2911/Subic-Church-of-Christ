@@ -69,6 +69,26 @@ export function MemberForm({
       }
     }
 
+    if (data.yearLevel) {
+      const yl = data.yearLevel.toUpperCase();
+      const isElementary = yearLevels.find(g => g.group === "Elementary")?.options.includes(yl);
+      const isJHS = yearLevels.find(g => g.group === "Junior High School")?.options.includes(yl);
+      const isSHS = yearLevels.find(g => g.group === "Senior High School")?.options.includes(yl);
+      const isCollege = yearLevels.find(g => g.group === "College")?.options.includes(yl);
+      const isGraduate = yearLevels.find(g => g.group === "Graduate School")?.options.includes(yl);
+      const isProfessional = yearLevels.find(g => g.group === "Professional / Career")?.options.includes(yl);
+
+      if (isElementary) {
+        data.course = "ELEMENTARY";
+      } else if (isJHS) {
+        data.course = "JUNIOR HIGH SCHOOL";
+      } else if (isSHS) {
+        data.course = "SENIOR HIGH SCHOOL";
+      } else if (!isCollege && !isGraduate && !isProfessional) {
+        data.course = "N/A";
+      }
+    }
+
     if (data.isBaptized === undefined) {
       const hasBaptismDate = data.baptismDate && data.baptismDate !== "" && data.baptismDate !== "N/A";
       const hasExecutedBy = data.baptismExecutedBy && data.baptismExecutedBy !== "" && data.baptismExecutedBy !== "N/A";
@@ -176,8 +196,18 @@ export function MemberForm({
           const isCollege = yearLevels.find(g => g.group === "College")?.options.includes(finalValue);
           const isGraduate = yearLevels.find(g => g.group === "Graduate School")?.options.includes(finalValue);
           const isProfessional = yearLevels.find(g => g.group === "Professional / Career")?.options.includes(finalValue);
+          
+          const isElementary = yearLevels.find(g => g.group === "Elementary")?.options.includes(finalValue);
+          const isJHS = yearLevels.find(g => g.group === "Junior High School")?.options.includes(finalValue);
+          const isSHS = yearLevels.find(g => g.group === "Senior High School")?.options.includes(finalValue);
 
-          if (!isCollege && !isGraduate && !isProfessional && finalValue) {
+          if (isElementary) {
+            newData.course = "ELEMENTARY";
+          } else if (isJHS) {
+            newData.course = "JUNIOR HIGH SCHOOL";
+          } else if (isSHS) {
+            newData.course = "SENIOR HIGH SCHOOL";
+          } else if (!isCollege && !isGraduate && !isProfessional && finalValue) {
             newData.course = "N/A";
           }
         }
@@ -243,6 +273,28 @@ export function MemberForm({
     }
 
     const finalData = { ...formData };
+    
+    // Ensure Course / Educational Field is consistent with Year Level
+    if (finalData.yearLevel) {
+      const yl = finalData.yearLevel.toUpperCase();
+      const isElementary = yearLevels.find(g => g.group === "Elementary")?.options.includes(yl);
+      const isJHS = yearLevels.find(g => g.group === "Junior High School")?.options.includes(yl);
+      const isSHS = yearLevels.find(g => g.group === "Senior High School")?.options.includes(yl);
+      const isCollege = yearLevels.find(g => g.group === "College")?.options.includes(yl);
+      const isGraduate = yearLevels.find(g => g.group === "Graduate School")?.options.includes(yl);
+      const isProfessional = yearLevels.find(g => g.group === "Professional / Career")?.options.includes(yl);
+
+      if (isElementary) {
+        finalData.course = "ELEMENTARY";
+      } else if (isJHS) {
+        finalData.course = "JUNIOR HIGH SCHOOL";
+      } else if (isSHS) {
+        finalData.course = "SENIOR HIGH SCHOOL";
+      } else if (!isCollege && !isGraduate && !isProfessional) {
+        finalData.course = "N/A";
+      }
+    }
+
     if (finalData.birthday) {
       const computedAge = calculateAge(finalData.birthday);
       if (computedAge !== undefined) {
