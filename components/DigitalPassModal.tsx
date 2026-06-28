@@ -229,7 +229,7 @@ export function DigitalPassModal({ member, onClose }: { member: Member; onClose:
                 </div>
 
                 {/* QR Core Container */}
-                <div className="bg-slate-50/80 p-1.5 rounded-lg border border-slate-150 flex items-center justify-center w-20 h-20 my-1">
+                <div className="bg-slate-50/80 p-1.5 rounded-lg border border-slate-150 flex items-center justify-center w-28 h-28 my-1">
                   {qrCodeUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -332,7 +332,7 @@ export function DigitalPassModal({ member, onClose }: { member: Member; onClose:
                         <span className="text-[7.5px] text-slate-800 font-extrabold uppercase tracking-tight block">{member.expirationDate || "LIFETIME"}</span>
                       </div>
                     </div>
-                    <div className="col-span-1 bg-slate-50 p-0.5 rounded-lg border border-slate-100 flex items-center justify-center h-8 w-8 ml-auto">
+                    <div className="col-span-1 bg-slate-50 p-0.5 rounded-lg border border-slate-100 flex items-center justify-center h-14 w-14 ml-auto">
                       {qrCodeUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -405,7 +405,7 @@ export function DigitalPassModal({ member, onClose }: { member: Member; onClose:
                           .info-label { font-size: 5pt; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 1px; line-height: 1; }
                           .info-value { font-size: 7.5pt; font-weight: 700; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
                           .qr-container { padding: 3px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; margin-top: auto; margin-bottom: 0.04in; }
-                          .qr-container img { width: 0.65in; height: 0.65in; display: block; }
+                          .qr-container img { width: 0.95in; height: 0.95in; display: block; }
                           .member-id { font-size: 6pt; font-family: monospace; color: #64748b; font-weight: 700; letter-spacing: 0.02em; line-height: 1; }
                           .card-body-back { padding: 0.1in 0.1in 0.08in 0.1in; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; background-color: #fafafc; height: 2.525in; }
                           .specs-box { width: 100%; background: white; border-radius: 8px; border: 1px solid #e2e8f0; padding: 0.06in; display: flex; flex-direction: column; gap: 0.04in; text-align: left; }
@@ -425,7 +425,7 @@ export function DigitalPassModal({ member, onClose }: { member: Member; onClose:
                           .validity-block { display: flex; flex-direction: column; gap: 2px; }
                           .text-micro { font-size: 5pt !important; }
                           .text-mono-small { font-size: 6pt !important; line-height: 1; display: block; }
-                          .mini-qr { width: 0.32in; height: 0.32in; padding: 1px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin-left: auto; }
+                          .mini-qr { width: 0.55in; height: 0.55in; padding: 1px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin-left: auto; }
                           .mini-qr img { width: 100%; height: 100%; display: block; }
                           .reminders-box { font-size: 4.8pt; color: #94a3b8; text-align: left; line-height: 1.25; border-top: 1px solid #f1f5f9; padding-top: 4px; font-weight: 600; }
                           .card-footer { background-color: #0f172a !important; color: rgba(255, 255, 255, 0.4); height: 0.35in; display: flex; align-items: center; justify-content: center; font-size: 5.5pt; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-top: 1px solid #1e293b; padding: 0 0.1in; white-space: nowrap; }
