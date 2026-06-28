@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useRef } from "react";
 import { Member, Network, Ministry } from "@/lib/api";
 import { 
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 import { generateBaptismalCertificate } from "@/lib/certificateGen";
 import { yearLevels, collegeCourses, graduateCourses } from "@/lib/educationData";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const calculateAge = (birthdayString: string): number | undefined => {
   if (!birthdayString) return undefined;
@@ -49,6 +52,7 @@ export function MemberForm({
   networks = [],
   ministries = []
 }: MemberFormProps) {
+  const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("personal");
 
   const [formData, setFormData] = useState<Partial<Member>>(() => {
@@ -1077,7 +1081,7 @@ export function MemberForm({
         {/* Footer Actions Panel */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-5 mt-8 border-t border-gray-100 gap-4">
           <div>
-            {initialData && (
+            {initialData && initialData.id && role === "admin" && (
               <button
                 type="button"
                 onClick={() => generateBaptismalCertificate(initialData)}

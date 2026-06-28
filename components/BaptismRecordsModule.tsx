@@ -296,14 +296,16 @@ export function BaptismRecordsModule({ members, role }: BaptismRecordsModuleProp
                       </div>
                     </div>
 
-                    <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3 flex gap-2">
-                      <button
-                        onClick={() => generateBaptismalCertificate(m)}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#D4AF37]/50 text-amber-800 hover:bg-yellow-50 bg-white font-extrabold text-xs uppercase tracking-wider rounded-lg transition shadow-xs cursor-pointer"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-[#D4AF37]" /> Export DOCX
-                      </button>
-                    </div>
+                    {role === "admin" && (
+                      <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3 flex gap-2">
+                        <button
+                          onClick={() => generateBaptismalCertificate(m)}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#D4AF37]/50 text-amber-800 hover:bg-yellow-50 bg-white font-extrabold text-xs uppercase tracking-wider rounded-lg transition shadow-xs cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-[#D4AF37]" /> Export DOCX
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
