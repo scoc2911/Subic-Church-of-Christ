@@ -85,6 +85,10 @@ export const generateBaptismalCertificate = async (member: Member) => {
       {
         properties: {
           page: {
+            size: {
+              width: 11906,  // A4 size width in dxa (twips)
+              height: 16838, // A4 size height in dxa (twips)
+            },
             margin: {
               top: 1440,    // 1 inch
               right: 1440,
